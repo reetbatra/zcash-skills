@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>zcashskills — Zcash knowledge for AI agents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<style>
+  :root {
+    --bg:#0b0b0c; --panel:#131315; --border:#27272a; --fg:#e4e4e7;
+    --dim:#8f8f96; --gold:#f4b728; --gold-dim:#a87d1d;
+  }
+  * { box-sizing:border-box; }
+  html { background:var(--bg); }
+  body {
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:14px; line-height:1.65;
+  }
+  .wrap { max-width:860px; margin:0 auto; padding:56px 28px 96px; }
+  a { color:var(--gold); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  .banner {
+    font-size:11px; line-height:1.15; color:var(--gold);
+    white-space:pre; overflow-x:auto; margin:0 0 28px;
+    text-shadow:0 0 18px rgba(244,183,40,.18);
+  }
+  .tagline { font-size:17px; font-weight:600; margin:0 0 18px; }
+  .lede { color:var(--dim); margin:0 0 26px; max-width:66ch; }
+  .lede b { color:var(--fg); }
+  .promptbox {
+    background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:14px 16px; margin:0 0 8px; font-size:13px;
+    display:flex; gap:12px; align-items:flex-start; justify-content:space-between;
+  }
+  .promptbox code { flex:1; color:var(--fg); word-break:break-all; }
+  .copy {
+    flex:0 0 auto; background:none; border:1px solid var(--border); border-radius:6px;
+    color:var(--dim); font:inherit; font-size:11px; padding:3px 10px; cursor:pointer;
+  }
+  .copy:hover { color:var(--gold); border-color:var(--gold-dim); }
+  .hint { color:var(--dim); font-size:12px; margin:0 0 44px; }
+  h2 {
+    font-size:12px; text-transform:uppercase; letter-spacing:.14em;
+    color:var(--dim); border-bottom:1px solid var(--border);
+    padding-bottom:8px; margin:44px 0 6px;
+  }
+  .skill { display:block; padding:16px 4px; border-bottom:1px solid var(--border); color:var(--fg); }
+  .skill:hover { text-decoration:none; background:rgba(244,183,40,.03); }
+  .skill .name { font-weight:700; color:var(--gold); font-size:15px; }
+  .skill .desc { color:var(--dim); font-size:13px; margin:5px 0 7px; max-width:72ch; }
+  .skill .path { color:var(--gold-dim); font-size:11px; }
+  .setup-item { padding:14px 0; border-bottom:1px solid var(--border); }
+  .setup-item .tool { font-weight:600; }
+  .setup-item ol { margin:8px 0 0; padding-left:20px; color:var(--dim); font-size:13px; }
+  .setup-item code { color:var(--fg); background:#1c1c1f; padding:1px 5px; border-radius:4px; font-size:12px; }
+  footer { margin-top:56px; padding-top:20px; border-top:1px solid var(--border); color:var(--dim); font-size:12px; }
+  .back { display:inline-block; margin-bottom:24px; font-size:12px; }
+  .fmbanner {
+    background:var(--panel); border:1px solid var(--border); border-radius:8px;
+    padding:12px 16px; font-size:12px; color:var(--dim); margin:0 0 28px;
+  }
+  .fmbanner b { color:var(--gold); }
+  main h1 { font-size:22px; border-bottom:1px solid var(--border); padding-bottom:10px; }
+  main h2 { font-size:15px; margin:36px 0 12px; }
+  main h2::before { content:"## "; color:var(--gold-dim); }
+  main h3 { font-size:14px; margin:28px 0 10px; }
+  main h3::before { content:"### "; color:var(--gold-dim); }
+  main p, main li { color:#c9c9cf; }
+  main :not(pre) > code { background:#1c1c1f; padding:2px 5px; border-radius:4px; font-size:12.5px; }
+  main pre { background:#000; border:1px solid var(--border); border-radius:8px; padding:14px; overflow-x:auto; font-size:12.5px; }
+  main table { border-collapse:collapse; width:100%; margin:18px 0; font-size:12.5px; }
+  main th, main td { border:1px solid var(--border); padding:7px 11px; text-align:left; vertical-align:top; }
+  main th { background:var(--panel); }
+  main blockquote { border-left:2px solid var(--gold-dim); margin-left:0; padding-left:14px; color:var(--dim); }
+  main strong { color:var(--fg); }
+  main ul, main ol { padding-left:22px; }
+  .crumb { color:var(--dim); font-size:11px; margin-bottom:8px; }
+  @media (max-width:900px) { .banner { font-size:8px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="home">
+    <pre class="banner">███████╗  ██████╗  █████╗  ███████╗ ██╗  ██╗ ███████╗ ██╗  ██╗ ██╗ ██╗      ██╗      ███████╗
+╚══███╔╝ ██╔════╝ ██╔══██╗ ██╔════╝ ██║  ██║ ██╔════╝ ██║ ██╔╝ ██║ ██║      ██║      ██╔════╝
+  ███╔╝  ██║      ███████║ ███████╗ ███████║ ███████║ █████╔╝  ██║ ██║      ██║      ███████╗
+ ███╔╝   ██║      ██╔══██║ ╚════██║ ██╔══██║ ╚════██║ ██╔═██╗  ██║ ██║      ██║      ╚════██║
+███████╗ ╚██████╗ ██║  ██║ ███████║ ██║  ██║ ███████║ ██║  ██╗ ██║ ███████╗ ███████╗ ███████║
+╚══════╝  ╚═════╝ ╚═╝  ╚═╝ ╚══════╝ ╚═╝  ╚═╝ ╚══════╝ ╚═╝  ╚═╝ ╚═╝ ╚══════╝ ╚══════╝ ╚══════╝</pre>
+
+    <p class="tagline">The missing knowledge between AI agents and production Zcash.</p>
+    <p class="lede">Your AI agent is wrong about building on Zcash. <b>zcashskills</b> fixes that —
+    each skill is a <code>SKILL.md</code> the agent reads before working. Works in Claude, Cursor,
+    Codex, Devin, or any agent that can read a file.</p>
+
+    <div class="promptbox">
+      <code id="prompt">Read the SKILL.md router in this repo and follow it before writing
+      wallet code, touching shielded transactions, or shipping anything on Zcash.</code>
+      <button class="copy" onclick="copyPrompt(this)">Copy prompt</button>
+    </div>
+    <p class="hint">Bot-readable. Every skill lives at <code>skills/&lt;name&gt;/SKILL.md</code> — click one to read it.</p>
+
+    <h2>Skills</h2>
+    <div id="skills">Loading…</div>
+
+    <h2>Persistent setup</h2>
+    <div class="setup-item"><div class="tool">Codex</div>
+      <ol><li>Create <code>AGENTS.md</code> in your repo root</li>
+      <li>Paste: <code>Read the zcashskills SKILL.md router and follow it before writing wallet code or shipping anything on Zcash.</code></li></ol>
+    </div>
+    <div class="setup-item"><div class="tool">Cursor</div>
+      <ol><li>Create <code>.cursor/rules/zcashskills.mdc</code></li>
+      <li>Paste a rule pointing at this repo's <code>SKILL.md</code> with <code>alwaysApply: true</code></li></ol>
+    </div>
+    <div class="setup-item"><div class="tool">Claude Code / Devin</div>
+      <ol><li>Copy <code>skills/</code> into <code>.claude/skills/</code> or <code>.agents/skills/</code></li>
+      <li>Granular loading: only the skill whose description matches fires</li></ol>
+    </div>
+    <div class="setup-item"><div class="tool">Scripts</div>
+      <ol><li>Fetch <code>SKILL.md</code> and bake it into your pipeline or system prompt</li></ol>
+    </div>
+
+    <h2>Contributing</h2>
+    <p class="lede">Something wrong or missing? Skills drift — upstream renames crates, bumps images, seals pools.
+    Humans and agents alike are welcome to <a href="https://github.com/zcashlabs/zcash-skills">open a PR</a>.</p>
+
+    <footer>MIT License · <a href="https://github.com/zcashlabs/zcash-skills">GitHub repo</a> · seeded from
+    <a href="https://github.com/amiabix/zcash-and-ths-skills">amiabix/zcash-and-ths-skills</a></footer>
+  </div>
+
+  <main id="reader" style="display:none"></main>
+</div>
+
+<script>
+const FILES = /*MANIFEST*/["AGENTS.md", "README.md", "SKILL.md", "skills/ths-dashboard/SKILL.md", "skills/ths-dashboard/references/dashboard.md", "skills/ths-regtest-verifier/SKILL.md", "skills/ths-regtest-verifier/references/live-tests.md", "skills/ths-release/SKILL.md", "skills/ths-release/references/release-path.md", "skills/ths-runtime/SKILL.md", "skills/ths-runtime/references/launcher-runtime.md", "skills/ths-wallet-server/SKILL.md", "skills/ths-wallet-server/references/wallet-server.md", "skills/ths/SKILL.md", "skills/zakura/SKILL.md", "skills/zakura/references/node.md", "skills/zcash-light-client/SKILL.md", "skills/zcash-light-client/references/scanning-integration.md", "skills/zcash-payments/SKILL.md", "skills/zcash-payments/references/payments.md", "skills/zcash-protocol/SKILL.md", "skills/zcash-protocol/references/protocol-consensus.md", "skills/zcash-wallet/SKILL.md", "skills/zcash-wallet/references/keys-addresses.md", "skills/zcash/SKILL.md"]/*END*/;
+const META = {};
+
+async function loadMeta() {
+  await Promise.all(FILES.filter(f => f.startsWith('skills/') && f.endsWith('/SKILL.md')).map(async f => {
+    const txt = await (await fetch('../' + f)).text();
+    const fm = txt.match(/^---\n([\s\S]*?)\n---/);
+    if (fm) META[f] = {
+      name: (fm[1].match(/^name:\s*(.+)$/m) || [])[1],
+      desc: (fm[1].match(/^description:\s*(.+)$/m) || [])[1],
+    };
+  }));
+}
+
+function buildHome() {
+  const el = document.getElementById('skills');
+  const names = Object.keys(META).sort((a, b) => {
+    const o = ['skills/zcash/', 'skills/ths/'];
+    const ai = o.findIndex(p => a.startsWith(p)), bi = o.findIndex(p => b.startsWith(p));
+    if (ai !== bi) return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    return a.localeCompare(b);
+  });
+  el.innerHTML = names.map(f => `
+    <a class="skill" href="#/${f}">
+      <div class="name">${META[f].name || f}</div>
+      <div class="desc">${META[f].desc || ''}</div>
+      <div class="path">${f}</div>
+    </a>`).join('');
+}
+
+function resolveLink(base, href) {
+  if (!href || href.includes('://') || href.startsWith('mailto:') || href.startsWith('#')) return href;
+  const parts = (base.split('/').slice(0, -1).join('/') + '/' + href).split('/');
+  const out = [];
+  for (const p of parts) { if (p === '..') out.pop(); else if (p !== '.' && p !== '') out.push(p); }
+  return out.join('/');
+}
+
+async function render(path) {
+  const home = document.getElementById('home');
+  const reader = document.getElementById('reader');
+  if (!path) { home.style.display = ''; reader.style.display = 'none'; window.scrollTo(0,0); return; }
+  const res = await fetch('../' + path);
+  if (!res.ok) { reader.innerHTML = '<p>Not found: ' + path + '</p>'; home.style.display = 'none'; reader.style.display = ''; return; }
+  let md = await res.text();
+  const fm = md.match(/^---\n([\s\S]*?)\n---\n/);
+  let banner = '';
+  if (fm) {
+    const name = (fm[1].match(/^name:\s*(.+)$/m) || [])[1] || '';
+    const desc = (fm[1].match(/^description:\s*(.+)$/m) || [])[1] || '';
+    banner = `<div class="fmbanner"><b>${name}</b><br>${desc}</div>`;
+    md = md.slice(fm[0].length);
+  }
+  reader.innerHTML = `<a class="back" href="#/">← zcashskills</a>
+    <div class="crumb">${path}</div>` + banner + marked.parse(md);
+  for (const a of reader.querySelectorAll('a[href]')) {
+    const resolved = resolveLink(path, a.getAttribute('href'));
+    if (resolved && resolved !== a.getAttribute('href') && FILES.includes(resolved)) a.href = '#/' + resolved;
+  }
+  home.style.display = 'none'; reader.style.display = '';
+  window.scrollTo(0, 0);
+  document.title = path + ' — zcashskills';
+}
+
+function copyPrompt(btn) {
+  navigator.clipboard.writeText(document.getElementById('prompt').textContent.trim().replace(/\s+/g, ' '));
+  btn.textContent = 'Copied'; setTimeout(() => btn.textContent = 'Copy prompt', 1500);
+}
+
+window.addEventListener('hashchange', () => render(location.hash.slice(2)));
+loadMeta().then(() => { buildHome(); render(location.hash.slice(2)); });
+</script>
+</body>
+</html>
