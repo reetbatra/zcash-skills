@@ -36,6 +36,23 @@ root (`python3 -m http.server`) and open `/`, or publish it with GitHub Pages
 ("Deploy from a branch" → `/ (root)`). After adding or removing `.md` files,
 regenerate its embedded file list with `python3 docs/gen-manifest.py`.
 
+## Keeping skills current
+
+The `ths-*` skills name real paths, symbols, commands, and behavior in a
+repository that ships several changes a day. CI checks them so a rename or
+a fixed bug shows up as a failing check, not as an agent following stale
+instructions:
+
+- `scripts/check_skills.py` runs the format, link, secret, manifest, and
+  versioned-facts checks from `AGENTS.md`.
+- `scripts/check_drift.py --ths <checkout>` resolves every code reference in
+  the `ths-*` skills against Thus Spoke Zakura and re-checks the claims pinned
+  in `scripts/ths-anchors.toml` (Regtest activation heights, the cleanup
+  ownership gap, account roles, the node image tag, and others). It runs daily
+  against THS `main`.
+
+Both use only the Python standard library (3.11+).
+
 ## Usage
 
 Install the whole `skills/` tree into your agent's skills directory — the

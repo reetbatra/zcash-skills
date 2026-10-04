@@ -4,13 +4,18 @@
 Run from the repository root after adding or removing .md files:
 
     python3 docs/gen-manifest.py
+
+With --check, report whether the embedded manifest is current without
+rewriting index.html; exits 1 when it is stale. CI runs this mode.
 """
 import json
 import os
 import re
+import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INDEX = os.path.join(ROOT, "index.html")
+MARKERS = re.compile(r"/\*MANIFEST\*/(.*?)/\*END\*/", re.S)
 
 files = sorted(
     os.path.relpath(os.path.join(dirpath, name), ROOT)
@@ -20,14 +25,21 @@ files = sorted(
 )
 
 html = open(INDEX).read()
-new, n = re.subn(
-    r"/\*MANIFEST\*/.*?/\*END\*/",
-    lambda _: "/*MANIFEST*/" + json.dumps(files) + "/*END*/",
-    html,
-    count=1,
-    flags=re.S,
-)
-if n != 1:
-    raise SystemExit("manifest markers not found in docs/index.html")
+match = MARKERS.search(html)
+if match is None:
+    raise SystemExit("manifest markers not found in index.html")
+
+if "--check" in sys.argv[1:]:
+    embedded = json.loads(match.group(1))
+    if embedded == files:
+        print(f"manifest current ({len(files)} files)")
+        sys.exit(0)
+    for path in sorted(set(files) - set(embedded)):
+        print(f"missing from manifest: {path}")
+    for path in sorted(set(embedded) - set(files)):
+        print(f"listed but not on disk: {path}")
+    raise SystemExit("manifest stale: run python3 docs/gen-manifest.py")
+
+new = html[: match.start()] + "/*MANIFEST*/" + json.dumps(files) + "/*END*/" + html[match.end() :]
 open(INDEX, "w").write(new)
 print(f"{len(files)} files in manifest")

@@ -47,3 +47,19 @@ There is no build. Before committing, verify:
   `python3 docs/gen-manifest.py` after adding/removing `.md` files;
 - versioned claims (heights, image tags, crate versions) match
   `docs/versioned-facts.md` — `python3 docs/check-facts.py` must pass.
+
+`python3 scripts/check_skills.py` runs all five. When you edit a `ths-*`
+skill, also check it against a THS checkout:
+
+```console
+python3 scripts/check_drift.py --ths ../thus-spoke-zakura
+python3 -m unittest discover -s tests
+```
+
+`check_drift.py` resolves every backticked path, file, symbol, CLI command,
+flag, and API route in the `ths-*` skills against THS, and re-checks the
+version-pinned claims listed in `scripts/ths-anchors.toml`. When you add a
+claim that depends on a specific THS line (an activation height, a known gap,
+an account role), add an anchor for it. When an anchor fails, fix every skill
+passage it lists, then update its evidence. CI runs both scripts on every push
+and daily against THS `main`; a scheduled failure opens an issue.

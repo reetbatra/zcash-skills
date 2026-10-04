@@ -1,0 +1,81 @@
+name: checks
+
+on:
+  push:
+  pull_request:
+  # THS changes without touching this repository, so drift has to be polled.
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+    inputs:
+      ths_ref:
+        description: thus-spoke-zakura branch, tag, or SHA to check against
+        default: main
+
+permissions:
+  contents: read
+
+jobs:
+  skills:
+    name: format, links, secrets, manifest, facts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python scripts/check_skills.py
+      - run: python -m unittest discover -s tests -v
+
+  drift:
+    name: drift vs thus-spoke-zakura
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: skills
+      - uses: actions/checkout@v7
+        with:
+          repository: zcashlabs/thus-spoke-zakura
+          ref: ${{ inputs.ths_ref || 'main' }}
+          path: thus-spoke-zakura
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: check skills against THS
+        run: |
+          set -o pipefail
+          python skills/scripts/check_drift.py --ths thus-spoke-zakura --markdown | tee drift-report.md
+      - name: publish report
+        if: always()
+        run: cat drift-report.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: drift-report
+          path: drift-report.md
+
+  report:
+    name: open or update the drift issue
+    needs: drift
+    if: failure() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: drift-report
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Skills drifted from thus-spoke-zakura"
+          printf '%s\n\nDetected by the scheduled [checks run](%s).\n' "$(cat drift-report.md)" "$RUN_URL" > body.md
+          number=$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number')
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body-file body.md
+          else
+            gh issue create --title "$title" --body-file body.md
+          fi

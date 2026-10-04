@@ -1,0 +1,130 @@
+# Version-pinned facts in the ths-* skills, each tied to the source that
+# makes it true in zcashlabs/thus-spoke-zakura. scripts/check_drift.py fails
+# when a skill passage or its evidence changes, so the claim gets re-verified
+# instead of silently going stale.
+#
+# [[anchor]]  A claim the skills make about THS.
+#   skills    Where the claim appears: `file` plus an exact `text` excerpt.
+#             If the excerpt is gone, the skill was edited and this anchor
+#             needs updating too.
+#   evidence  What THS must still contain for the claim to hold: `file` plus
+#             `contains` (exact text, whitespace-insensitive), `regex`
+#             (Python re, multiline), or `absent` (text that must NOT appear).
+#
+# [[value]]   A literal the skills repeat, compared with THS's current value.
+#   source    `file` plus `regex` with one capture group: the current value.
+#   pattern   Regex matched across every skill/README markdown file; each
+#             match must equal the captured value.
+#
+# When THS changes on purpose, fix every skill that states the old fact
+# (grep for it, per AGENTS.md), then update the evidence here.
+
+ref_scope = ["skills/ths/**", "skills/ths-*/**"]
+
+# Backticked tokens in ref_scope that are not THS repository references.
+ignore_refs = [
+  "linux/amd64",            # Docker platform strings
+  "linux/arm64",
+  "vX.Y.Z",                 # placeholder tag
+  "zakuracore/zakura",      # image repository, checked by [[value]] below
+  "tm-miner",               # placeholder address in test config
+]
+
+[[anchor]]
+id = "regtest-activation-heights"
+claim = "THS Regtest activates every network upgrade through NU6.3 at height 1; NU7 is not active."
+skills = [
+  { file = "skills/ths/SKILL.md", text = "activates every network upgrade through NU6.3 at height 1" },
+]
+evidence = [
+  { file = "crates/ths-server/src/wallet.rs", contains = "nu6_3: one," },
+  { file = "crates/ths-server/src/wallet.rs", contains = "nu7: None," },
+  { file = "crates/ths-server/src/main.rs", contains = "\"NU6.3\" = 1" },
+  { file = "crates/ths-server/src/main.rs", absent = "\"NU7\" = 1" },
+]
+
+[[anchor]]
+id = "orchard-pool-rejected"
+claim = "The wallet API rejects `orchard` as a pool because Orchard stopped accepting deposits at NU6.3."
+skills = [
+  { file = "skills/ths/SKILL.md", text = "the wallet API rejects `orchard` as a pool" },
+]
+evidence = [
+  { file = "crates/ths-server/src/api.rs", regex = '"orchard" => Err\(ApiError::bad_request' },
+]
+
+[[anchor]]
+id = "cleanup-ownership-gap"
+claim = "Instance cleanup deletes Docker resources by name without checking ownership labels, and the network is created without a label."
+skills = [
+  { file = "skills/ths/SKILL.md", text = "The current launcher has a resource-ownership gap documented in `ths-runtime`" },
+  { file = "skills/ths-runtime/references/launcher-runtime.md", text = "the network is created without one, and `delete_instance_resources` still deletes by name without verifying labels" },
+  { file = "skills/ths-runtime/references/launcher-runtime.md", text = "`delete_instance_resources` removes these names without checking the `com.zakura.ths.instance` label" },
+]
+evidence = [
+  { file = "crates/ths-cli/src/runtime.rs", regex = 'fn delete_instance_resources\(&self, name: &InstanceName\)' },
+  { file = "crates/ths-cli/src/runtime.rs", contains = 'docker(["rm", "-f", &target])' },
+  { file = "crates/ths-cli/src/runtime.rs", contains = 'docker(["network", "create", prefix])?;' },
+  { file = "crates/ths-cli/src/runtime.rs", contains = 'format!("com.zakura.ths.instance={name}")' },
+]
+
+[[anchor]]
+id = "treasury-account"
+claim = "Accounts 1-5 are user accounts; account 6 is the mining and faucet treasury."
+skills = [
+  { file = "skills/ths/SKILL.md", text = "Accounts 1–5 are user accounts and account 6 is the mining and faucet treasury" },
+  { file = "skills/ths-wallet-server/SKILL.md", text = "Keep accounts 1–5 user-facing and account 6 internal" },
+  { file = "skills/ths-wallet-server/references/wallet-server.md", text = "Account 6 (`TREASURY_ACCOUNT_ID`) is the miner and faucet treasury" },
+]
+evidence = [
+  { file = "crates/ths-server/src/db.rs", contains = "pub const TREASURY_ACCOUNT_ID: u8 = 6;" },
+]
+
+[[anchor]]
+id = "account-1-initial-funding"
+claim = "Startup provisions Account 1 with 5 Ironwood ZEC."
+skills = [
+  { file = "skills/ths-wallet-server/references/wallet-server.md", text = "provisions Account 1 with 5 Ironwood ZEC" },
+]
+evidence = [
+  { file = "crates/ths-server/src/main.rs", contains = "provisioning Account 1 with 5 Ironwood ZEC" },
+  { file = "crates/ths-server/src/api.rs", contains = "INITIAL_FUNDING_KEY" },
+]
+
+[[anchor]]
+id = "explorer-number-fields"
+claim = "Explorer chain-value fields (chainValueZat, valueDeltaZat) are JavaScript numbers, not bigint."
+skills = [
+  { file = "skills/ths-dashboard/references/dashboard.md", text = "Explorer chain-value fields (`chainValueZat`, `valueDeltaZat`) currently remain JavaScript `number`" },
+]
+evidence = [
+  { file = "web/src/lib/api/schemas.ts", contains = "chainValueZat: z.number()" },
+  { file = "web/src/lib/api/schemas.ts", contains = "valueDeltaZat: z.number()" },
+]
+
+[[anchor]]
+id = "chain-sse-topic"
+claim = "The `chain` SSE topic invalidates status, the blocks list, mempool, and the block/transaction/address detail prefixes."
+skills = [
+  { file = "skills/ths-dashboard/references/dashboard.md", text = "The `chain` SSE topic currently invalidates status, the `['blocks']` list prefix, mempool, and the `['block']`/`['transaction']`/`['address']` detail prefixes" },
+]
+evidence = [
+  { file = "web/src/hooks/useServerEvents.ts", regex = "chain: \\[\\s*\\[\\.\\.\\.queryKeys\\.status\\],\\s*\\['blocks'\\],\\s*\\[\\.\\.\\.queryKeys\\.mempool\\],\\s*\\['block'\\],\\s*\\['transaction'\\],\\s*\\['address'\\],\\s*\\]" },
+]
+
+[[anchor]]
+id = "large-history-recovery-case"
+claim = "The live activity-recovery test makes ten 5 ZEC faucet payments and expects account 2 to gain 5,000,000,000 zatoshis."
+skills = [
+  { file = "skills/ths-regtest-verifier/references/live-tests.md", text = "makes ten confirmed 5 ZEC faucet payments and checks account 2's final increase of 5,000,000,000 zatoshis" },
+]
+evidence = [
+  { file = "crates/ths-server/tests/activity_recovery.rs", contains = "for request in 0..10" },
+  { file = "crates/ths-server/tests/activity_recovery.rs", contains = "final_balance == initial_balance + 5_000_000_000" },
+]
+
+[[value]]
+id = "zakura-image-tag"
+claim = "The pinned Zakura node image."
+source = { file = "crates/ths-cli/src/runtime.rs", regex = 'const ZAKURA_IMAGE: &str = "([^"]+)";' }
+pattern = 'zakuracore/zakura:[0-9][0-9A-Za-z._-]*'
