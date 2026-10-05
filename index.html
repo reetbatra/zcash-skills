@@ -99,7 +99,7 @@
     Codex, Devin, or any agent that can read a file.</p>
 
     <div class="promptbox">
-      <code id="prompt">Read https://raw.githubusercontent.com/zcashlabs/zcash-skills/main/SKILL.md
+      <code id="prompt">Read https://zcashlabs.github.io/zcash-skills/SKILL.md
       and follow it before writing wallet code, touching shielded transactions, or shipping anything on Zcash.</code>
       <button class="copy" onclick="copyPrompt(this)">Copy prompt</button>
     </div>
@@ -111,7 +111,7 @@
     <h2>Persistent setup</h2>
     <div class="setup-item"><div class="tool">Codex</div>
       <ol><li>Create <code>AGENTS.md</code> in your repo root</li>
-      <li>Paste: <code>Read https://raw.githubusercontent.com/zcashlabs/zcash-skills/main/SKILL.md and follow it before writing wallet code or shipping anything on Zcash.</code></li></ol>
+      <li>Paste: <code>Read https://zcashlabs.github.io/zcash-skills/SKILL.md and follow it before writing wallet code or shipping anything on Zcash.</code></li></ol>
     </div>
     <div class="setup-item"><div class="tool">Cursor</div>
       <ol><li>Create <code>.cursor/rules/zcashskills.mdc</code></li>
@@ -139,7 +139,7 @@
 const FILES = /*MANIFEST*/["AGENTS.md", "README.md", "SKILL.md", "skills/ths-dashboard/SKILL.md", "skills/ths-dashboard/references/dashboard.md", "skills/ths-regtest-verifier/SKILL.md", "skills/ths-regtest-verifier/references/live-tests.md", "skills/ths-release/SKILL.md", "skills/ths-release/references/release-path.md", "skills/ths-runtime/SKILL.md", "skills/ths-runtime/references/launcher-runtime.md", "skills/ths-wallet-server/SKILL.md", "skills/ths-wallet-server/references/wallet-server.md", "skills/ths/SKILL.md", "skills/zakura/SKILL.md", "skills/zakura/references/node.md", "skills/zcash-light-client/SKILL.md", "skills/zcash-light-client/references/scanning-integration.md", "skills/zcash-payments/SKILL.md", "skills/zcash-payments/references/payments.md", "skills/zcash-protocol/SKILL.md", "skills/zcash-protocol/references/protocol-consensus.md", "skills/zcash-wallet/SKILL.md", "skills/zcash-wallet/references/keys-addresses.md", "skills/zcash/SKILL.md"]/*END*/;
 const META = {};
 
-const RAW = 'https://raw.githubusercontent.com/zcashlabs/zcash-skills/main/';
+const RAW = 'https://zcashlabs.github.io/zcash-skills/';
 
 async function getText(f) {
   try {
