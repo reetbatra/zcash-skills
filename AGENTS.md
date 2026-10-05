@@ -43,5 +43,5 @@ There is no build. Before committing, verify:
 - every relative `[label](../other/SKILL.md)` or `[label](references/x.md)`
   link resolves to a file that exists;
 - no secrets or real address material beyond documented public fixtures;
-- `docs/index.html`'s embedded manifest is current — run
+- `index.html`'s embedded manifest is current — run
   `python3 docs/gen-manifest.py` after adding/removing `.md` files.

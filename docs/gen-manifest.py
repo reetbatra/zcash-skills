@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerate the markdown-file manifest embedded in docs/index.html.
+"""Regenerate the markdown-file manifest embedded in index.html.
 
 Run from the repository root after adding or removing .md files:
 
@@ -10,7 +10,7 @@ import os
 import re
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-INDEX = os.path.join(ROOT, "docs", "index.html")
+INDEX = os.path.join(ROOT, "index.html")
 
 files = sorted(
     os.path.relpath(os.path.join(dirpath, name), ROOT)

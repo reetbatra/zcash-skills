@@ -139,20 +139,22 @@
 const FILES = /*MANIFEST*/["AGENTS.md", "README.md", "SKILL.md", "skills/ths-dashboard/SKILL.md", "skills/ths-dashboard/references/dashboard.md", "skills/ths-regtest-verifier/SKILL.md", "skills/ths-regtest-verifier/references/live-tests.md", "skills/ths-release/SKILL.md", "skills/ths-release/references/release-path.md", "skills/ths-runtime/SKILL.md", "skills/ths-runtime/references/launcher-runtime.md", "skills/ths-wallet-server/SKILL.md", "skills/ths-wallet-server/references/wallet-server.md", "skills/ths/SKILL.md", "skills/zakura/SKILL.md", "skills/zakura/references/node.md", "skills/zcash-light-client/SKILL.md", "skills/zcash-light-client/references/scanning-integration.md", "skills/zcash-payments/SKILL.md", "skills/zcash-payments/references/payments.md", "skills/zcash-protocol/SKILL.md", "skills/zcash-protocol/references/protocol-consensus.md", "skills/zcash-wallet/SKILL.md", "skills/zcash-wallet/references/keys-addresses.md", "skills/zcash/SKILL.md"]/*END*/;
 const META = {};
 
-// file:// cannot fetch() — tell the user how to serve the site.
-if (location.protocol === 'file:') {
-  document.getElementById('skills').innerHTML =
-    '<p class="lede">Browsers block file reads over <code>file://</code>. Serve the repo root instead: ' +
-    '<code>python3 -m http.server 8787</code> then open ' +
-    '<code>http://localhost:8787/docs/index.html</code>. On GitHub Pages this page works as-is.</p>';
+const RAW = 'https://raw.githubusercontent.com/zcashlabs/zcash-skills/main/';
+
+async function getText(f) {
+  try {
+    const r = await fetch(f);
+    if (r.ok) return await r.text();
+  } catch {}
+  const r = await fetch(RAW + f);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return await r.text();
 }
 
 async function loadMeta() {
   const jobs = FILES.filter(f => f.startsWith('skills/') && f.endsWith('/SKILL.md')).map(async f => {
     try {
-      const res = await fetch('../' + f);
-      if (!res.ok) throw res.status;
-      const txt = await res.text();
+      const txt = await getText(f);
       const fm = txt.match(/^---\n([\s\S]*?)\n---/);
       META[f] = {
         name: fm ? (fm[1].match(/^name:\s*(.+)$/m) || [])[1] : f.split('/')[1],
@@ -165,8 +167,7 @@ async function loadMeta() {
 
 function buildHome() {
   const el = document.getElementById('skills');
-  if (location.protocol === 'file:') return;
-  const names = FILES.filter(f => f.startsWith('skills/') && f.endsWith('/SKILL.md'))
+    const names = FILES.filter(f => f.startsWith('skills/') && f.endsWith('/SKILL.md'))
     .sort((a, b) => {
       const o = ['skills/zcash/', 'skills/ths/'];
       const ai = o.findIndex(p => a.startsWith(p)), bi = o.findIndex(p => b.startsWith(p));
@@ -177,7 +178,7 @@ function buildHome() {
     <div class="skill">
       <a class="name" href="#/${f}">${(META[f] || {}).name || f.split('/')[1]}</a>
       <div class="desc">${(META[f] || {}).desc || ''}</div>
-      <a class="path" href="../${f}">${f}</a>
+      <a class="path" href="${f}">${f}</a>
     </div>`).join('');
 }
 
@@ -194,14 +195,12 @@ async function render(path) {
   const reader = document.getElementById('reader');
   if (!path) { home.style.display = ''; reader.style.display = 'none'; window.scrollTo(0,0); return; }
   home.style.display = 'none'; reader.style.display = '';
-  const head = `<a class="back" href="#/">← zcashskills</a><div class="crumb">${path} · <a href="../${path}">raw</a></div>`;
+  const head = `<a class="back" href="#/">← zcashskills</a><div class="crumb">${path} · <a href="${path}">raw</a></div>`;
   let md;
   try {
-    const res = await fetch('../' + path);
-    if (!res.ok) { reader.innerHTML = head + `<p>Not found (${res.status}). <a href="#/">Back</a></p>`; return; }
-    md = await res.text();
-  } catch {
-    reader.innerHTML = head + '<p>Could not fetch the file. Serve the repo root over HTTP: <code>python3 -m http.server</code>.</p>';
+    md = await getText(path);
+  } catch (e) {
+    reader.innerHTML = head + `<p>Not found (${e.message}). <a href="#/">Back</a></p>`;
     return;
   }
   const fm = md.match(/^---\n([\s\S]*?)\n---\n/);

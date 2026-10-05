@@ -31,10 +31,10 @@ always confirm behavior against its current `AGENTS.md` and source.
 
 ## Site
 
-`docs/index.html` renders the skill set as a single static page — serve the
-repo root (`python3 -m http.server`) and open `/docs/index.html`, or publish it
-with GitHub Pages ("Deploy from a branch" → root). After adding or removing
-`.md` files, regenerate its embedded file list with `python3 docs/gen-manifest.py`.
+`index.html` renders the skill set as a single static page — serve the repo
+root (`python3 -m http.server`) and open `/`, or publish it with GitHub Pages
+("Deploy from a branch" → `/ (root)`). After adding or removing `.md` files,
+regenerate its embedded file list with `python3 docs/gen-manifest.py`.
 
 ## Usage
 
