@@ -35,6 +35,7 @@ id = "regtest-activation-heights"
 claim = "THS Regtest activates every network upgrade through NU6.3 at height 1; NU7 is not active."
 skills = [
   { file = "skills/ths/SKILL.md", text = "activates every network upgrade through NU6.3 at height 1" },
+  { file = "docs/versioned-facts.md", text = "`regtest_network().nu7 = None`" },
 ]
 evidence = [
   { file = "crates/ths-server/src/wallet.rs", contains = "nu6_3: one," },
