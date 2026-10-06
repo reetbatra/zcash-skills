@@ -37,6 +37,22 @@ Key consensus consequences to test:
 
 Do not extrapolate pre-NU6.3 Orchard rules to current height, and do not treat "Orchard" in a UA as naming a distinct destination pool from Ironwood.
 
+## NU7 ([ZIP 259](https://zips.z.cash/zip-0259))
+
+NU7 activated on Testnet at height 4,465,026 (2026-10-06); Mainnet height is assigned 2026-10-20 with activation targeted for 2026-11-05. Consensus branch ID `0x77190AD9`; minimum network protocol versions 170180 (Testnet) / 170190 (Mainnet). NU7 deploys **no new transaction format** — v5 and v6 stay structurally valid — but every signature commits to a consensus branch ID, so a transaction signed before activation is invalid after it even though its format is unchanged. Verify these constants against the ZIP at use time; heights marked TBD move.
+
+Deployed changes:
+
+- **ZIP 218** — block target spacing 75 s → 25 s. Per-block shielded limits: `GlobalShieldedBudget = 330` units shared by Orchard+Ironwood Actions (each Action costs 1), per-pool caps of 330 Orchard and 330 Ironwood actions, `SaplingBlockIOLimit = 300` spends+outputs, `SproutBlockJoinSplitLimit = 0`. Testnet minimum-difficulty threshold moves from 6 to 18 block spacings (block time > 450 s after parent). Block subsidies rescale so halvings are preserved.
+- **ZIP 2003** — version 4 transactions invalid → the Sprout pool is permanently unspendable.
+- **ZIP 235** — 60% of transaction fees removed from circulation (block-level consensus calculation, not a tx field).
+- **ZIP 237** — halving-preserving Network Sustainability Mechanism; `NSM_REISSUANCE_HEIGHT` Testnet 7,305,222, Mainnet per formula.
+- **ZIP 207 rev 2 / ZIP 214 rev 3 / ZIP 2008** — funding-stream address periods, end heights (NU7 activation heights must be multiples of 3), and the `FS_FPF_ZCG_H3` address list.
+
+**Expiry under NU7.** ZIP 203 expiry heights are still block heights, but wall-clock expiry is now 3× faster at the same delta. [ZIP 218](https://zips.z.cash/zip-0218) says node defaults SHOULD move `-txexpirydelta` from 40 blocks (~50 min at 75 s) to 120 blocks after activation. This is non-consensus default behavior — wallets and nodes that hard-code 40 now expire in ~16 minutes. Mempool eviction bounds measured in blocks compress the same way. Check what the pinned node/wallet actually defaults to, and note the boundary case: a transaction signed before NU7 activation is invalid after it regardless of its expiry height, because signatures commit to the branch ID.
+
+**Rehearsing NU7 on Regtest.** Do not wait for the network to tell you the boundary works. Run a Zakura (or Zebra) Regtest with NU7 assigned a deferred activation height — in zakurad's config the regtest parameters live under `[network.testnet_parameters.activation_heights]` keyed by upgrade name (THS's generated `zakurad.toml` shows the pattern: `"NU6.3" = 1` etc.). Mine up to `H-1`, build transactions under the old rules, cross `H`, then exercise: v4 rejection, pre-signed v5/v6 txs failing on branch ID, the new spacing under `generate`/`pow` behavior if the regtest controls difficulty, and expiry deltas in your wallet layer. In THS specifically the wallet's `regtest_network()` must mirror the node's activation heights (`nu7: Some(H)` vs `None`) or wallet and node disagree about which rules apply — keep both sides in sync, that's a real failure mode, not a hypothetical.
+
 ## Trace the implementation
 
 For parsing, serialization, sighash, commitments, proof verification, or network-upgrade activation, find the exact production caller and the representation it validates. Determine whether a decoder rejects malformed bytes before semantic checks, whether canonical encodings are required, and which feature gates or upgrade branches are reachable at `H`. Check both accepted and rejected boundary cases. A consensus change needs a rule-level oracle, not only a wallet send test.

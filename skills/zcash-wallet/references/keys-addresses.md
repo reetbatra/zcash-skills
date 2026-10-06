@@ -37,6 +37,16 @@ ZIP 316 Revision 0 is active; Revision 2 is draft as of this reference's review.
 
 **Ironwood note (NU6.3):** The Ironwood pool reuses the Orchard protocol's keys and receiver item — UA encodings did not change. An Orchard-type receiver selected under ZIP 316 produces a note committed to the Ironwood pool on post-NU6.3 chains; the legacy Orchard pool accepts spends and change but no new incoming value. When a fixture or test says "Orchard payment," check whether the claim is about the *address receiver type* (unchanged) or the *destination pool* (now Ironwood). See [ZIP 229](https://zips.z.cash/zip-0229) and the [Ironwood book](https://zcash.github.io/ironwood/).
 
+**TEX addresses (ZIP 320):** a `tex1…` (Mainnet) or `textest1…` (Testnet) address is a Bech32m re-encoding of a transparent P2PKH validating-key hash — same 20-byte payload as the `t1`/`t3`-family address, different encoding, different promise. The encoding is a directive from the recipient (originally motivated by exchange deposit requirements): **only transparent UTXOs may fund a transaction output to a TEX address**. It is a wallet-behavior rule, not consensus — a non-conforming sender risks the recipient rejecting/returning the payment.
+
+Sender handling:
+
+- Sending transparent funds to a TEX: no extra requirements beyond the encoding.
+- Sending shielded funds to a TEX: the conforming path is **two transactions** — unshield to an ephemeral transparent address, then send transparently to the TEX. The ephemeral address should be recoverable from the ZIP 32 seed and not linkable across transactions.
+- TEX is not a Unified Address and does not participate in ZIP 316 receiver selection; decode it on its own path (`bech32m`, HRP `tex`/`textest`, 20-byte payload) and do not mistake it for a `uregtest`/`u1` UA or a raw `t1`.
+- Conversion `tex` ↔ `t1` is mechanical (same key hash); display both forms if it aids UX, but honor the source restriction only for the TEX form.
+- Round-trip fixture from the ZIP: `t1VmmGiyjVNeCjxDZzg7vZmd99WyzVby9yC` ↔ `tex1s2rt77ggv6q989lr49rkgzmh5slsksa9khdgte`.
+
 **Decode matrix from ZIP 316:** Treat raw item ordering and send preference as separate rules. Encoded receiver items use ascending typecode order, while a sender's preferred supported receiver is Orchard, then Sapling, then transparent. For a Revision 0 UA, test duplicate typecodes, descending encoded typecodes, both P2SH and P2PKH transparent receivers, a transparent-only UA, and trailing bytes as invalid encodings. Test an ordinary unknown item as forward-compatible input; it does not become a receiver the sender can spend to. See the [UA requirements](https://zips.z.cash/zip-0316#requirements-for-both-unified-addresses-and-unified-viewing-keys) and [encoding rules](https://zips.z.cash/zip-0316#encoding-of-unified-addresses). Prefer the [official UA vectors](https://github.com/zcash/zcash-test-vectors) to hand-written address strings.
 
 **Example:** A UA with Orchard and transparent receivers sent from an Orchard-capable wallet selects the Orchard-type receiver under ZIP 316 Revision 0 (producing an Ironwood-pool note after NU6.3). A wallet that cannot use it must check whether another supported receiver is valid under its actual rules; it must not silently claim a shielded payment was made.

@@ -38,10 +38,18 @@ regenerate its embedded file list with `python3 docs/gen-manifest.py`.
 
 ## Usage
 
-Copy the skill folders you need into your agent's skills directory
-(`.claude/skills/`, `.agents/skills/`, etc.) or point the agent at a `SKILL.md`
-path directly. A minimal starting set for Zcash work is `zcash` plus the
-relevant specialist; for THS work, `ths` plus the relevant subsystem skill.
+Install the whole `skills/` tree into your agent's skills directory — the
+routers and references link between siblings (`../zcash-wallet/SKILL.md`,
+`references/…`), so copying only some folders breaks routing:
+
+```sh
+cp -r skills/* ~/.claude/skills/   # user-wide, Claude Code
+cp -r skills/* .agents/skills/     # per-project, Devin-compatible agents
+```
+
+The root `SKILL.md` is the entry point for agents that read a URL: point them
+at `https://zcashlabs.github.io/zcash-skills/SKILL.md` (or the file itself).
+It is not a discoverable skill on its own — each `skills/<name>/SKILL.md` is.
 
 ## Sources and provenance
 

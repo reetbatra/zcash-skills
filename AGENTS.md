@@ -44,4 +44,6 @@ There is no build. Before committing, verify:
   link resolves to a file that exists;
 - no secrets or real address material beyond documented public fixtures;
 - `index.html`'s embedded manifest is current — run
-  `python3 docs/gen-manifest.py` after adding/removing `.md` files.
+  `python3 docs/gen-manifest.py` after adding/removing `.md` files;
+- versioned claims (heights, image tags, crate versions) match
+  `docs/versioned-facts.md` — `python3 docs/check-facts.py` must pass.

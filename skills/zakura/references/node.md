@@ -18,7 +18,7 @@ docker run -d \
   --name zakura \
   -p 8233:8233 \
   -v zakurad-cache:/home/zakura/.cache/zakura \
-  zakuracore/zakura:latest
+  zakuracore/zakura:<tag>
 ```
 
 `8233` is Mainnet P2P (`18233` on Testnet). The volume persists chain state across restarts. In Thus Spoke Zakura the Regtest node listens on loopback `18232` (RPC) / `18233` (P2P) via the pinned `zakuracore/zakura` image — see the `ths` skills.

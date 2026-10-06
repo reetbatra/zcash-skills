@@ -39,6 +39,8 @@ Keys, viewing authority, addresses, receiver selection, payment URIs.
 - Parsing an address does not prove ownership; an IVK does not spend.
 - Unified Addresses (ZIP 316): sender picks the most preferred supported
   receiver — Orchard-receiver items resolve to the Ironwood pool post-NU6.3.
+- TEX addresses (ZIP 320, `tex1…`): transparent-source-only by convention —
+  shielded funding is a wallet bug, routed through an ephemeral transparent hop.
 - ZIP 321 URIs: an unknown `req-*` parameter invalidates the whole request.
 
 ### [zcash-payments](skills/zcash-payments/SKILL.md)

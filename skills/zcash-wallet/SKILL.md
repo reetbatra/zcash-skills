@@ -23,5 +23,6 @@ Use [official Zcash test vectors](https://github.com/zcash/zcash-test-vectors) f
 - A UA with shielded and transparent receivers tests decoding, the sender's supported pools, the selected receiver, and the privacy consequence of the choice. Post-NU6.3, a shielded Orchard-protocol receiver lands in the Ironwood pool.
 - A seed restore tests account derivation, birthday, transparent diversifier index 0, and discovered funds on a known chain. Matching address text alone is too weak.
 - A ZIP 321 URI with an unsupported `req-*` parameter is rejected as a whole request; ordinary unknown parameters do not justify inventing a payment.
+- A `tex1…` destination (ZIP 320) must be funded only from transparent UTXOs — a shielded-funded output to a TEX is a wallet bug, not a consensus failure. The conforming shielded path unshields to an ephemeral transparent address first.
 
 Report the network, ZIP revision, selected library version, receiver or key capability, and the observed recovery or payment-request result. Keep secret key material out of reports.

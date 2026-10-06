@@ -118,11 +118,11 @@
       <li>Paste a rule pointing at this repo's <code>SKILL.md</code> with <code>alwaysApply: true</code></li></ol>
     </div>
     <div class="setup-item"><div class="tool">Claude Code / Devin</div>
-      <ol><li>Copy <code>skills/</code> into <code>.claude/skills/</code> or <code>.agents/skills/</code></li>
+      <ol><li>Copy the whole <code>skills/</code> tree into <code>.claude/skills/</code> or <code>.agents/skills/</code> — sibling layout is load-bearing (routers link <code>../other-skill/SKILL.md</code>)</li>
       <li>Granular loading: only the skill whose description matches fires</li></ol>
     </div>
     <div class="setup-item"><div class="tool">Scripts</div>
-      <ol><li>Fetch <code>SKILL.md</code> and bake it into your pipeline or system prompt</li></ol>
+      <ol><li>Fetch <code>https://zcashlabs.github.io/zcash-skills/SKILL.md</code> and bake it into your pipeline or system prompt</li></ol>
     </div>
 
     <h2>Contributing</h2>
@@ -136,7 +136,7 @@
 </div>
 
 <script>
-const FILES = /*MANIFEST*/["AGENTS.md", "README.md", "SKILL.md", "skills/ths-dashboard/SKILL.md", "skills/ths-dashboard/references/dashboard.md", "skills/ths-regtest-verifier/SKILL.md", "skills/ths-regtest-verifier/references/live-tests.md", "skills/ths-release/SKILL.md", "skills/ths-release/references/release-path.md", "skills/ths-runtime/SKILL.md", "skills/ths-runtime/references/launcher-runtime.md", "skills/ths-wallet-server/SKILL.md", "skills/ths-wallet-server/references/wallet-server.md", "skills/ths/SKILL.md", "skills/zakura/SKILL.md", "skills/zakura/references/node.md", "skills/zcash-light-client/SKILL.md", "skills/zcash-light-client/references/scanning-integration.md", "skills/zcash-payments/SKILL.md", "skills/zcash-payments/references/payments.md", "skills/zcash-protocol/SKILL.md", "skills/zcash-protocol/references/protocol-consensus.md", "skills/zcash-wallet/SKILL.md", "skills/zcash-wallet/references/keys-addresses.md", "skills/zcash/SKILL.md"]/*END*/;
+const FILES = /*MANIFEST*/["AGENTS.md", "README.md", "SKILL.md", "docs/versioned-facts.md", "skills/ths-dashboard/SKILL.md", "skills/ths-dashboard/references/dashboard.md", "skills/ths-regtest-verifier/SKILL.md", "skills/ths-regtest-verifier/references/live-tests.md", "skills/ths-release/SKILL.md", "skills/ths-release/references/release-path.md", "skills/ths-runtime/SKILL.md", "skills/ths-runtime/references/launcher-runtime.md", "skills/ths-wallet-server/SKILL.md", "skills/ths-wallet-server/references/wallet-server.md", "skills/ths/SKILL.md", "skills/zakura/SKILL.md", "skills/zakura/references/node.md", "skills/zcash-light-client/SKILL.md", "skills/zcash-light-client/references/scanning-integration.md", "skills/zcash-payments/SKILL.md", "skills/zcash-payments/references/payments.md", "skills/zcash-protocol/SKILL.md", "skills/zcash-protocol/references/protocol-consensus.md", "skills/zcash-wallet/SKILL.md", "skills/zcash-wallet/references/keys-addresses.md", "skills/zcash/SKILL.md"]/*END*/;
 const META = {};
 
 const RAW = 'https://zcashlabs.github.io/zcash-skills/';
