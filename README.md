@@ -48,7 +48,7 @@ instructions:
 - `scripts/check_drift.py --ths <checkout>` resolves every code reference in
   the `ths-*` skills against Thus Spoke Zakura and re-checks the claims pinned
   in `scripts/ths-anchors.toml` (Regtest activation heights, the cleanup
-  ownership gap, account roles, the node image tag, and others). It runs daily
+  ownership check, account roles, the node image tag, and others). It runs daily
   against THS `main`.
 
 Both use only the Python standard library (3.11+).

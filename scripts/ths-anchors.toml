@@ -54,18 +54,20 @@ evidence = [
 ]
 
 [[anchor]]
-id = "cleanup-ownership-gap"
-claim = "Instance cleanup deletes Docker resources by name without checking ownership labels, and the network is created without a label."
+id = "cleanup-ownership-check"
+claim = "Reuse and deletion go through owned_resource, which refuses Docker resources whose instance label does not name the instance; the network is labeled too."
 skills = [
-  { file = "skills/ths/SKILL.md", text = "The current launcher has a resource-ownership gap documented in `ths-runtime`" },
-  { file = "skills/ths-runtime/references/launcher-runtime.md", text = "the network is created without one, and `delete_instance_resources` still deletes by name without verifying labels" },
-  { file = "skills/ths-runtime/references/launcher-runtime.md", text = "`delete_instance_resources` removes these names without checking the `com.zakura.ths.instance` label" },
+  { file = "skills/ths/SKILL.md", text = "only when its instance label names the selected instance" },
+  { file = "skills/ths-runtime/references/launcher-runtime.md", text = "`owned_resource` gates both reuse (`ensure_*`) and deletion (`delete_instance_resources_with_mode`)" },
+  { file = "skills/ths-runtime/references/launcher-runtime.md", text = "`owned_resource` must refuse the foreign resource" },
+  { file = "skills/ths-runtime/references/launcher-runtime.md", text = "Ownership is covered through the `DockerResourceCommands` seam" },
 ]
 evidence = [
-  { file = "crates/ths-cli/src/runtime.rs", regex = 'fn delete_instance_resources\(&self, name: &InstanceName\)' },
-  { file = "crates/ths-cli/src/runtime.rs", contains = 'docker(["rm", "-f", &target])' },
-  { file = "crates/ths-cli/src/runtime.rs", contains = 'docker(["network", "create", prefix])?;' },
-  { file = "crates/ths-cli/src/runtime.rs", contains = 'format!("com.zakura.ths.instance={name}")' },
+  { file = "crates/ths-cli/src/runtime.rs", regex = 'fn owned_resource\(' },
+  { file = "crates/ths-cli/src/runtime.rs", contains = "is not owned by ths instance {name}; refusing to reuse or delete it" },
+  { file = "crates/ths-cli/src/runtime.rs", contains = 'let result = owned_resource(docker, kind, target, name)' },
+  { file = "crates/ths-cli/src/runtime.rs", contains = '"network", "create", "--label", &label(name), prefix' },
+  { file = "crates/ths-cli/src/runtime.rs", contains = "fn foreign_volume_collision_preserves_all_resources()" },
 ]
 
 [[anchor]]
