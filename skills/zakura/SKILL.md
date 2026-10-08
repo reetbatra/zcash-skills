@@ -5,7 +5,7 @@ description: Use when running, integrating, or reviewing the Zakura Zcash full n
 
 # Zakura
 
-Zakura is a consensus-compatible Zcash full node in Rust, forked from [Zebra](https://github.com/ZcashFoundation/zebra) and developed at [zakura-core/zakura](https://github.com/zakura-core/zakura). It is a node — validation, networking, chain state — not a wallet. Do not treat it as a renamed `zcashd`: the legacy wallet/RPC surface runs through zcashd-compat mode or Zallet, not inside `zakurad`. See [the node reference](references/node.md) for install paths, compat topology, and the crate map.
+Zakura is a consensus-compatible Zcash full node in Rust, forked from [Zebra](https://github.com/ZcashFoundation/zebra) and developed at [zakura-core/zakura](https://github.com/zakura-core/zakura). It is a node — validation, networking, chain state — not a wallet. Do not treat it as a renamed `zcashd`: the legacy wallet/RPC surface runs through zcashd-compat mode or [Zallet](https://github.com/zcash/zallet), not inside `zakurad`. See [the node reference](references/node.md) for install paths, compat topology, and the crate map.
 
 ## Core workflow
 

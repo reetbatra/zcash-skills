@@ -68,7 +68,7 @@ A new transport stack (iroh/QUIC-based; see the `iroh`/`iroh-quinn` forks under 
 
 ## Crate map
 
-Node crates mirror the `zebra_*` layout (`zakura-chain`, `zakura-state`, `zakura-consensus`, `zakura-network`, `zakura-rpc`, `zakura-script`, `zakura-node-services`, `zakura-header-chain`, `zakura-test`, `zakura-utils`, `zakura-assets`, `zakura-jsonl-trace`). Wallet/crypto crates live separately:
+Node crates mirror the `zebra_*` layout (`zakura-chain`, `zakura-state`, `zakura-consensus`, `zakura-network`, `zakura-rpc`, `zakura-script`, `zakura-node-services`, `zakura-header-chain`, `zakura-mmr-tree`, `zakura-test`, `zakura-utils`, `zakura-jsonl-trace`, plus the publish-only `zakura-assets` crate excluded from the workspace). Wallet/crypto crates live separately:
 
 - `zakura-core/common` — `zakura-keys`, `zakura-primitives`, `zakura-proofs`, `zakura-orchard`, `zakura-sapling-crypto`, `zakura-transparent`, `zakura-zip321`, `zakura-pczt`, `zakura-protocol`, plus `zakura-vct-sprout-history*`
 - `zakura-core/wallet-libraries` — `zakura-client-backend`, `zakura-client-sqlite`, `zakura-wallet-lib` (the `zcash_client_*` wallet-layer crates forked onto the Zakura crypto stack)

@@ -8,6 +8,8 @@
 | Web request, schema, or view behavior | The relevant `npm test --prefix web` case and web checks |
 | Real background recovery after auto-mine failure | Ignored `broadcast_recovers_after_auto_mine_failure` in `activity_recovery` |
 | Duplicate concurrent sends share one chain effect | Ignored `concurrent_identical_sends_have_one_chain_effect` |
+| Address-faucet retry across a server restart pays each destination once | Ignored `address_faucet_retry_after_server_restart_pays_each_destination_once` |
+| Address-faucet variants (internal/external, auto-mine failure, replay-safe pool round trip) | Ignored `internal_address_faucets_record_confirmed_activity`, `internal_address_faucet_recovers_after_auto_mine_failure`, `external_address_faucet_behavior_is_unchanged`, `same_account_cross_pool_round_trip_is_replay_safe` |
 | Large transparent reward history and later faucet responsiveness | Ignored `large_reward_history_keeps_treasury_faucet_responsive` |
 | Source-built dashboard or launcher behavior in containers | Rebuild app image, start a named disposable instance, inspect the actual running image |
 
@@ -24,13 +26,14 @@ docker pull zakuracore/zakura:1.6.0
 docker build -f docker/lightwalletd.Dockerfile -t ths-recovery-lightwalletd:local .
 cargo test --locked --profile dev-runtime -p ths-server --test activity_recovery -- --ignored --exact broadcast_recovers_after_auto_mine_failure
 cargo test --locked --profile dev-runtime -p ths-server --test activity_recovery -- --ignored --exact concurrent_identical_sends_have_one_chain_effect
+cargo test --locked --profile dev-runtime -p ths-server --test activity_recovery -- --ignored --exact address_faucet_retry_after_server_restart_pays_each_destination_once
 ```
 
 The first command compiles the integration target; the second runs Docker-free helper tests while the live cases remain ignored. The explicit `--ignored --exact` selections run the real cases. `broadcast_recovers_after_auto_mine_failure` broadcasts an Ironwood payment, rejects exactly one automatic `generate([1])`, mines directly through the node, and waits for background wallet sync to confirm the **existing** activity row. Retrying Send or calling the server mine endpoint would exercise a different repair path. Assert the exact transaction's inclusion, unchanged activity identity, confirmed block hash, and resulting wallet state.
 
 The 10,000-block case is a separate, expensive performance and correctness workload. It mines the history directly, waits for wallet sync, mines one incremental block, then exercises the faucet. Use it for reward-history and treasury-cursor claims; it is not required to prove auto-mine recovery. Its absence from the ordinary CI live job must be reported when making a large-history claim.
 
-The current large-history case makes ten confirmed 5 ZEC faucet payments and checks account 2's final increase of 5,000,000,000 zatoshis. Record the bulk catch-up and one-block incremental refresh separately if claiming that the path scales. `.github/workflows/ci.yml` runs the ignored live cases with `--ignored --exact` for `broadcast_recovers_after_auto_mine_failure` and `concurrent_identical_sends_have_one_chain_effect`; it does not select `large_reward_history_keeps_treasury_faucet_responsive`, so a green CI run provides no 10,000-block performance evidence. Confirm which cases CI selects at your revision — the list can change.
+The current large-history case makes ten confirmed 5 ZEC faucet payments and checks account 2's final increase of 5,000,000,000 zatoshis. Record the bulk catch-up and one-block incremental refresh separately if claiming that the path scales. `.github/workflows/ci.yml` runs the ignored live cases with `--ignored --exact` for `broadcast_recovers_after_auto_mine_failure`, `concurrent_identical_sends_have_one_chain_effect`, and `address_faucet_retry_after_server_restart_pays_each_destination_once`; it does not select `large_reward_history_keeps_treasury_faucet_responsive` or the other address-faucet cases, so a green CI run provides no 10k-block performance evidence and no evidence for those faucet variants. Confirm which cases CI selects at your revision — the list can change.
 
 This live case establishes observed responsiveness and resulting wallet state. It does not instrument how many records lightwalletd retrieved or prove a server-side UTXO query is bounded. For an underlying-query claim, inspect or measure the selected lightwalletd/Zakura query separately.
 
