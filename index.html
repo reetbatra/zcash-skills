@@ -106,9 +106,11 @@
   .searchbtn kbd {
     border:1px solid var(--border); border-radius:5px; padding:1px 6px;
     font-family:inherit; font-size:11px; color:var(--dim); background:var(--bg);
-    flex-shrink:0; display:flex; align-items:center; gap:4px;
+    flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    gap:4px; line-height:1;
   }
-  .searchbtn kbd .mod { font-size:14px; line-height:1; }
+  .searchbtn kbd .mod { font-size:14px; display:flex; align-items:center; }
+  .searchbtn kbd { min-width:34px; }
   .searchbtn svg { flex-shrink:0; }
   @media (max-width:700px) {
     .topbar { padding:0 14px; }
