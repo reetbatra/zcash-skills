@@ -79,10 +79,41 @@
   main ul, main ol { padding-left:22px; }
   .crumb { color:var(--dim); font-size:11px; margin-bottom:8px; }
   .rawmd { white-space:pre-wrap; color:#c9c9cf; background:#000; border:1px solid var(--border); border-radius:8px; padding:16px; font-size:12.5px; }
+
+  .searchbtn {
+    position:fixed; top:18px; right:20px; background:var(--panel); color:var(--dim);
+    border:1px solid var(--border); border-radius:8px; font:inherit; font-size:12px;
+    padding:6px 12px; cursor:pointer; z-index:50;
+  }
+  .searchbtn:hover { color:var(--gold); border-color:var(--gold-dim); }
+  .searchbtn kbd { border:1px solid var(--border); border-radius:4px; padding:0 4px; font-size:10px; margin-left:6px; }
+  .palette-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:100;
+    display:flex; align-items:flex-start; justify-content:center; padding-top:14vh;
+  }
+  .palette {
+    width:min(640px, 92vw); background:var(--panel); border:1px solid var(--gold-dim);
+    border-radius:10px; overflow:hidden; box-shadow:0 8px 40px rgba(0,0,0,.6);
+  }
+  .palette input {
+    width:100%; background:none; border:none; border-bottom:1px solid var(--border);
+    color:var(--fg); font:inherit; font-size:15px; padding:14px 16px; outline:none;
+  }
+  .palette input::placeholder { color:var(--dim); }
+  .palette-results { max-height:50vh; overflow-y:auto; }
+  .result { display:block; padding:10px 16px; color:var(--fg); text-decoration:none; border-left:3px solid transparent; }
+  .result.sel, .result:hover { background:#1c1c1f; border-left-color:var(--gold); text-decoration:none; }
+  .result .rpath { font-size:11px; color:var(--gold-dim); }
+  .result .rname { font-weight:600; }
+  .result .rsnip { font-size:12px; color:var(--dim); margin-top:2px; }
+  .result mark { background:rgba(244,183,40,.25); color:var(--fg); padding:0 1px; }
+  .palette-empty { padding:14px 16px; color:var(--dim); font-size:13px; }
+  mark.flash { background:rgba(244,183,40,.35); color:var(--fg); padding:0 1px; }
   @media (max-width:900px) { .banner { font-size:8px; } }
 </style>
 </head>
 <body>
+<button class="searchbtn" onclick="openPalette()">Search<kbd>⌘K</kbd></button>
 <div class="wrap">
 
   <div id="home">
@@ -133,6 +164,12 @@
   </div>
 
   <main id="reader" style="display:none"></main>
+</div>
+<div class="palette-overlay" id="palette" style="display:none" onclick="if(event.target===this)closePalette()">
+  <div class="palette">
+    <input id="pal-input" placeholder="Search skills, references, docs…" autocomplete="off" spellcheck="false">
+    <div class="palette-results" id="pal-results"></div>
+  </div>
 </div>
 
 <script>
@@ -230,7 +267,118 @@ function copyPrompt(btn) {
   btn.textContent = 'Copied'; setTimeout(() => btn.textContent = 'Copy prompt', 1500);
 }
 
-window.addEventListener('hashchange', () => render(location.hash.slice(2)));
+
+// ---- Cmd+K search palette ----
+const CONTENT = {};
+let contentPromise = null;
+let palSel = 0, palResults = [];
+
+function loadContent() {
+  if (!contentPromise) {
+    contentPromise = Promise.allSettled(FILES.map(async f => {
+      try { CONTENT[f] = await getText(f); } catch { CONTENT[f] = ''; }
+    }));
+  }
+  return contentPromise;
+}
+
+function openPalette() {
+  document.getElementById('palette').style.display = 'flex';
+  const input = document.getElementById('pal-input');
+  input.value = ''; palSel = 0; doSearch('');
+  input.focus();
+  loadContent().then(() => doSearch(input.value.trim()));
+}
+
+function closePalette() { document.getElementById('palette').style.display = 'none'; }
+
+function esc(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function doSearch(q) {
+  const box = document.getElementById('pal-results');
+  q = q.toLowerCase();
+  if (!q) {
+    box.innerHTML = '<div class="palette-empty">Type to search ' + FILES.length + ' documents — ↑↓ to choose, Enter to open.</div>';
+    palResults = []; return;
+  }
+  const hits = [];
+  for (const f of FILES) {
+    const text = CONTENT[f]; if (text === undefined) continue;
+    const low = text.toLowerCase();
+    let count = 0, idx = -1, i = 0;
+    while ((i = low.indexOf(q, i)) !== -1) { count++; if (idx < 0) idx = i; i += q.length; }
+    if (!count) continue;
+    const name = (META[f] || {}).name || f.split('/').slice(-2).join('/');
+    const titleHit = name.toLowerCase().includes(q) || f.toLowerCase().includes(q);
+    hits.push({ f, name, count, idx, score: count + (titleHit ? 20 : 0) });
+  }
+  hits.sort((a, b) => b.score - a.score);
+  palResults = hits.slice(0, 14);
+  palSel = 0;
+  box.innerHTML = palResults.length
+    ? palResults.map((h, i) => resultHTML(h, i, q)).join('')
+    : '<div class="palette-empty">No matches for “' + esc(q) + '”</div>';
+}
+
+function resultHTML(h, i, q) {
+  const text = CONTENT[h.f];
+  const low = text.toLowerCase();
+  const m = low.indexOf(q);
+  const a = Math.max(0, m - 40), b = Math.min(text.length, m + q.length + 80);
+  const snip = esc(text.slice(a, b)).replace(
+    new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), mm => `<mark>${mm}</mark>`);
+  return `<a class="result${i === palSel ? ' sel' : ''}" data-i="${i}" href="javascript:void(0)">
+    <span class="rname">${esc(h.name)}</span> <span class="rpath">${h.f} · ${h.count} hit${h.count>1?'s':''}</span>
+    <div class="rsnip">…${snip}…</div></a>`;
+}
+
+let pendingQuery = null;
+function openResult(i) {
+  const h = palResults[i]; if (!h) return;
+  pendingQuery = document.getElementById('pal-input').value.trim();
+  closePalette();
+  if (location.hash === '#/' + h.f) render(h.f).then(scrollToQuery);
+  else location.hash = '#/' + h.f;   // hashchange handler renders, then scrolls
+}
+
+function scrollToQuery() {
+  const q = pendingQuery; pendingQuery = null; if (!q) return;
+  const low = q.toLowerCase();
+  const walker = document.createTreeWalker(document.getElementById('reader'), NodeFilter.SHOW_TEXT);
+  let node;
+  while ((node = walker.nextNode())) {
+    const off = node.textContent.toLowerCase().indexOf(low);
+    if (off < 0) continue;
+    const tail = node.splitText(off); tail.splitText(q.length);
+    const mark = document.createElement('mark'); mark.className = 'flash';
+    mark.textContent = tail.textContent;
+    tail.parentNode.replaceChild(mark, tail);
+    mark.scrollIntoView({ block: 'center' });
+    return;
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); openPalette(); return; }
+  const pal = document.getElementById('palette');
+  if (pal.style.display === 'none') return;
+  if (e.key === 'Escape') closePalette();
+  else if (e.key === 'ArrowDown') { e.preventDefault(); moveSel(1); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); moveSel(-1); }
+  else if (e.key === 'Enter') openResult(palSel);
+});
+document.getElementById('pal-input').addEventListener('input', e => doSearch(e.target.value.trim()));
+document.getElementById('pal-results').addEventListener('click', e => {
+  const a = e.target.closest('.result'); if (a) openResult(+a.dataset.i);
+});
+function moveSel(d) {
+  if (!palResults.length) return;
+  palSel = (palSel + d + palResults.length) % palResults.length;
+  document.querySelectorAll('.result').forEach((el, i) => el.classList.toggle('sel', i === palSel));
+  document.querySelectorAll('.result')[palSel]?.scrollIntoView({ block: 'nearest' });
+}
+
+window.addEventListener('hashchange', () => render(location.hash.slice(2)).then(scrollToQuery));
 loadMeta().then(() => { buildHome(); render(location.hash.slice(2)); });
 </script>
 </body>
