@@ -16,4 +16,5 @@ Use the [live test guide](references/live-tests.md) for the current activity-rec
 - `cargo test --workspace` can pass while every ignored Docker case remains unrun; report the selected case name and exact command.
 - For broadcast recovery, assert the original activity and txid reach confirmation after background sync without another Send.
 - For concurrent duplicate sends, assert one chain effect for the same idempotency key.
+- For an address-faucet restart retry, assert each destination is paid once with the claimed idempotency key — that case runs in CI alongside the send cases.
 - For the large reward history, assert the wallet catches up and the next faucet succeeds; record elapsed time and resource use if responsiveness is claimed.
