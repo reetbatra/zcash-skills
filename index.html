@@ -84,12 +84,16 @@
     position:fixed; top:0; left:0; right:0; z-index:50; height:56px;
     display:flex; align-items:center; justify-content:space-between;
     padding:0 24px; background:var(--bg);
-    border-bottom:1px solid var(--border);
+    border-bottom:1px solid transparent;
+    transition:border-color .2s;
   }
+  .topbar.scrolled { border-bottom-color:var(--border); }
   .topbar .brand {
     color:var(--gold); text-decoration:none; font-weight:700; font-size:14px;
     letter-spacing:.5px; white-space:nowrap;
+    opacity:0; transition:opacity .2s;
   }
+  .topbar.scrolled .brand { opacity:1; }
   .topbar .brand:hover { text-decoration:none; }
   .searchbtn {
     width:200px; display:flex; align-items:center; gap:8px;
@@ -410,6 +414,18 @@ function moveSel(d) {
   document.querySelectorAll('.result').forEach((el, i) => el.classList.toggle('sel', i === palSel));
   document.querySelectorAll('.result')[palSel]?.scrollIntoView({ block: 'nearest' });
 }
+
+// show the header wordmark only once the ASCII banner is scrolled past
+const topbarEl = document.querySelector('.topbar');
+const bannerEl = document.querySelector('pre.banner');
+function updateTopbar() {
+  const r = bannerEl ? bannerEl.getBoundingClientRect() : { bottom: -1 };
+  const homeHidden = document.getElementById('home').style.display === 'none';
+  topbarEl.classList.toggle('scrolled', homeHidden || r.bottom < 60);
+}
+new IntersectionObserver(updateTopbar).observe(bannerEl);
+window.addEventListener('scroll', updateTopbar, { passive: true });
+updateTopbar();
 
 window.addEventListener('hashchange', () => render(location.hash.slice(2)).then(scrollToQuery));
 loadMeta().then(() => { buildHome(); render(location.hash.slice(2)); });
