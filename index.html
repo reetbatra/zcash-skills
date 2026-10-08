@@ -80,20 +80,39 @@
   .crumb { color:var(--dim); font-size:11px; margin-bottom:8px; }
   .rawmd { white-space:pre-wrap; color:#c9c9cf; background:#000; border:1px solid var(--border); border-radius:8px; padding:16px; font-size:12.5px; }
 
+  .topbar {
+    position:fixed; top:0; left:0; right:0; z-index:50; height:56px;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 24px; background:var(--bg);
+    border-bottom:1px solid var(--border);
+  }
+  .topbar .brand {
+    color:var(--gold); text-decoration:none; font-weight:700; font-size:14px;
+    letter-spacing:.5px; white-space:nowrap;
+  }
+  .topbar .brand:hover { text-decoration:none; }
   .searchbtn {
-    position:fixed; top:16px; right:20px; z-index:50;
-    width:180px; display:flex; align-items:center; justify-content:space-between;
-    background:#0e0e10; color:var(--dim); border:1px solid var(--border);
-    border-radius:8px; font:inherit; font-size:12px; padding:8px 10px; cursor:pointer;
+    width:200px; display:flex; align-items:center; gap:8px;
+    background:var(--panel); color:var(--dim); border:1px solid var(--border);
+    border-radius:8px; font:inherit; font-size:13px; padding:7px 10px;
+    cursor:pointer; white-space:nowrap;
   }
-  .searchbtn .sleft { display:flex; align-items:center; gap:8px; }
-  .searchbtn:hover { color:var(--fg); border-color:var(--gold-dim); }
+  .searchbtn:hover { border-color:var(--gold-dim); color:var(--fg); }
+  .searchbtn .stext { flex:1; text-align:left; }
   .searchbtn kbd {
-    border:1px solid var(--border); border-radius:5px; padding:2px 7px;
-    font-family:inherit; font-size:10px; letter-spacing:.5px;
-    color:var(--dim); background:var(--panel);
+    border:1px solid var(--border); border-radius:5px; padding:1px 6px;
+    font-family:inherit; font-size:11px; color:var(--dim); background:var(--bg);
+    flex-shrink:0;
   }
-  @media (max-width:700px) { .searchbtn { width:auto; } .searchbtn .sleft span.stext { display:none; } }
+  .searchbtn svg { flex-shrink:0; }
+  @media (max-width:700px) {
+    .topbar { padding:0 14px; }
+    .searchbtn { width:auto; }
+    .searchbtn .stext { display:none; }
+  }
+  @media (max-width:420px) {
+    .searchbtn kbd { display:none; }
+  }
   .palette-overlay {
     position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:100;
     display:flex; align-items:flex-start; justify-content:center; padding-top:14vh;
@@ -120,10 +139,14 @@
 </style>
 </head>
 <body>
-<button class="searchbtn" onclick="openPalette()">
-  <span class="sleft"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="5.5"/><line x1="11.5" y1="11.5" x2="15" y2="15"/></svg><span class="stext">Search docs…</span></span>
-  <kbd>⌘K</kbd>
-</button>
+<header class="topbar">
+  <a class="brand" href="#/">zcashskills</a>
+  <button class="searchbtn" onclick="openPalette()">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="5.5"/><line x1="11.5" y1="11.5" x2="15" y2="15"/></svg>
+    <span class="stext">Search</span>
+    <kbd>⌘K</kbd>
+  </button>
+</header>
 <div class="wrap">
 
   <div id="home">
