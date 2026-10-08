@@ -106,8 +106,9 @@
   .searchbtn kbd {
     border:1px solid var(--border); border-radius:5px; padding:1px 6px;
     font-family:inherit; font-size:11px; color:var(--dim); background:var(--bg);
-    flex-shrink:0;
+    flex-shrink:0; display:flex; align-items:center; gap:4px;
   }
+  .searchbtn kbd .mod { font-size:14px; line-height:1; }
   .searchbtn svg { flex-shrink:0; }
   @media (max-width:700px) {
     .topbar { padding:0 14px; }
@@ -148,7 +149,7 @@
   <button class="searchbtn" onclick="openPalette()">
     <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="5.5"/><line x1="11.5" y1="11.5" x2="15" y2="15"/></svg>
     <span class="stext">Search</span>
-    <kbd>⌘K</kbd>
+    <kbd><span class="mod">⌘</span>K</kbd>
   </button>
 </header>
 <div class="wrap">
