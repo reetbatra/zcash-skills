@@ -35,7 +35,7 @@
     padding:14px 16px; margin:0 0 8px; font-size:13px;
     display:flex; gap:12px; align-items:flex-start; justify-content:space-between;
   }
-  .promptbox code { flex:1; color:var(--fg); word-break:break-all; }
+  .promptbox code { flex:1; color:var(--fg); overflow-wrap:break-word; }
   .copy {
     flex:0 0 auto; background:none; border:1px solid var(--border); border-radius:6px;
     color:var(--dim); font:inherit; font-size:11px; padding:3px 10px; cursor:pointer;
@@ -107,9 +107,9 @@
     border:1px solid var(--border); border-radius:5px; padding:1px 6px;
     font-family:inherit; font-size:11px; color:var(--dim); background:var(--bg);
     flex-shrink:0; display:flex; align-items:center; justify-content:center;
-    gap:4px; line-height:1;
+    gap:4px; line-height:1.5;
   }
-  .searchbtn kbd .mod { font-size:14px; display:flex; align-items:center; }
+  .searchbtn kbd .mod { font-size:15px; display:flex; align-items:center; }
   .searchbtn kbd { min-width:34px; }
   .searchbtn svg { flex-shrink:0; }
   @media (max-width:700px) {
