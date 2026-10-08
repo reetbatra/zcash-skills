@@ -33,7 +33,7 @@ Key consensus consequences to test:
 - Orchard-pool Actions must have `enableCrossAddress = 0` — an Orchard spend can produce change to the spender's own receiver but cannot pay a *different* Orchard-pool recipient.
 - Coinbase must not contain Orchard-pool Actions.
 - ZIP 209 turnstile tracking is extended to the Ironwood pool; `valuePools` reporting gains an `ironwood` entry — a real compatibility break for consumers with a fixed pool list (it broke pinned Zaino releases against Zebra 6).
-- v6 transactions add the Ironwood-pool bundle (encoded as a second Orchard-shaped bundle); v5 remains valid post-NU6.3 but cannot carry Ironwood outputs. Address encodings are unchanged — Ironwood notes sit at Orchard-protocol receivers.
+- v6 transactions add the Ironwood-pool bundle (encoded as a second Orchard-shaped bundle); NU6.3 admits v4, v5, and v6 (v4 is only disallowed from NU7 onward), but only v6 can carry Ironwood outputs. Address encodings are unchanged — Ironwood notes sit at Orchard-protocol receivers.
 
 Do not extrapolate pre-NU6.3 Orchard rules to current height, and do not treat "Orchard" in a UA as naming a distinct destination pool from Ironwood.
 

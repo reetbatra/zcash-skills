@@ -38,6 +38,8 @@ file whose match text differs from `value`.
 | Wallet DB schema names | `ext_tsz_*` — intentionally kept for migration stability despite the crate rename | 2026-10-02 | `wallet.rs` comment |
 | Dev API env var | `THS_DEV_API` (not `TSZ_DEV_API`) | 2026-10-02 | `AGENTS.md` |
 | Regtest NU activation | NU6–NU6.3 at height 1 in generated `zakurad.toml`; `regtest_network().nu7 = None` | 2026-10-06 | `main.rs`, `wallet.rs` |
+| Address-faucet idempotency | `faucet_address` requires a key; `claim_address_faucet` persists to `address_faucets`; replay resumes the operation; `activities`/`address_faucets` share one key space (`IdempotencyConflict`) | 2026-10-08 | `api.rs` `execute_address_faucet`, `db.rs` |
+| Address-faucet replay tests | `confirmed_address_faucet_replays_without_sending_a_second_payment`, `address_faucet_replay_survives_restart_and_rejects_conflicting_intents`, `address_faucet_reconciles_the_original_txid_after_a_lost_broadcast_response` | 2026-10-08 | `api.rs`, `db.rs` test modules |
 | CI live cases | `activity_recovery` runs `broadcast_recovers_after_auto_mine_failure` + `concurrent_identical_sends_have_one_chain_effect`; the 10k-block case is not in CI | 2026-10-06 | `ci.yml` |
 
 ## Machine-checkable facts
@@ -45,7 +47,10 @@ file whose match text differs from `value`.
 Each block maps a `pattern` (regex appearing in repo docs) to the canonical
 `value`. The checker fails on mismatched matches; anything without a pattern is
 date-only. Keep one `pattern` per fact; make it match the whole token
-(e.g. `name:version`).
+(e.g. `name:version`). A block may instead set `kind: forbid` (no `value`
+needed): every match of the pattern is then a stale-claim failure — use this
+for "X does not exist / X is not required" statements that upstream has since
+made false.
 
 ```facts
 id: zakura-image
@@ -69,4 +74,20 @@ value: 4,465,026
 pattern: 4,?465,?026|NU7[^\n]{0,40}Testnet[^\n]{0,40}[0-9]{6,}
 verified: 2026-10-06
 source: ZIP 259
+```
+
+```facts
+id: address-faucet-idempotency
+kind: forbid
+pattern: faucet[^\n]{0,100}(?:no idempotency|(?:creates?|has|requires?|needs?|with) no activity row|does not (?:create|persist)[^\n]{0,30}(?:activity|row)|without (?:an? )?idempotency)|(?:no idempotency|no activity row)[^\n]{0,60}faucet
+verified: 2026-10-08
+source: crates/ths-server/src/api.rs — execute_address_faucet requires the key and persists via claim_address_faucet; claims of a keyless external faucet are stale
+```
+
+```facts
+id: nu63-tx-versions
+kind: forbid
+pattern: transactions are (?:all )?version 6|(?:all|only) transactions (?:are|use|must be) (?:v6|version 6)|v6[- ]only transactions|version 6 transactions only
+verified: 2026-10-08
+source: ZIPs 229/2003 — NU6.3 permits v4, v5, and v6; v6 is required for Ironwood outputs and v4 is disallowed only from NU7
 ```

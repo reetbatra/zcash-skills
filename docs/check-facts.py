@@ -9,6 +9,10 @@ that a skill went stale after an upstream bump (image tag, version, height).
 It also warns when a fact's `verified` date is older than STALE_DAYS — a prompt
 to re-verify, not a failure. Facts without a `pattern` are date-only.
 
+A fact may set `kind: forbid` — then ANY pattern match in a doc is a
+contradiction. Use it for stale claims of absence ("X has no idempotency key")
+where upstream later added the thing; a value-check cannot express that.
+
 Run from anywhere:  python3 docs/check-facts.py
 Exit 0 = clean (or only stale-date warnings); exit 1 = contradictory values.
 """
@@ -59,8 +63,12 @@ def main():
                 continue
             for i, line in enumerate(open(path), 1):
                 for m in rx.finditer(line):
-                    if f["value"] not in m.group(0) and m.group(0) not in f["value"]:
-                        rel = os.path.relpath(path, ROOT)
+                    rel = os.path.relpath(path, ROOT)
+                    if f.get("kind") == "forbid":
+                        mismatches.append(
+                            f"{rel}:{i}: '{m.group(0)}' is a stale claim — {f['id']} ({f.get('source', 'see versioned-facts.md')})"
+                        )
+                    elif f["value"] not in m.group(0) and m.group(0) not in f["value"]:
                         mismatches.append(
                             f"{rel}:{i}: '{m.group(0)}' conflicts with {f['id']} = '{f['value']}'"
                         )

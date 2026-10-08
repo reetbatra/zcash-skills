@@ -7,7 +7,8 @@ description: Use when a request involves Zcash, ZEC, shielded transactions, Unif
 
 You are probably wrong about Zcash's current state. `zcashd` is deprecated, ECC
 is now ZODL, Orchard is sealed (spend-only since NU6.3), shielded funds land in
-the **Ironwood** pool, and transactions are version 6. This file routes you to
+the **Ironwood** pool, and NU6.3 permits transaction versions 4, 5, and 6 —
+only v6 carries Ironwood outputs, and v4 dies with NU7. This file routes you to
 the correction you need.
 
 ---

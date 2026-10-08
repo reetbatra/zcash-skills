@@ -7,7 +7,7 @@ description: Use when changing Thus Spoke Zakura wallet sync, treasury rewards, 
 
 Read the current repository `AGENTS.md` and [wallet server](references/wallet-server.md). Trace node RPC and lightwalletd data through the pinned Zakura wallet crates, the server snapshot, and the API result. Use `zcash-wallet`, `zcash-payments`, or `zcash-light-client` for the Zcash semantics touched by the change.
 
-Keep accounts 1–5 user-facing and account 6 internal. Preserve the wallet snapshot as the balance source. For account Send and faucet, retain the claim-before-work pattern (`claim_transfer` / `claim_faucet` persist intent keyed by the idempotency key before any wallet call), transaction identity, and activity recovery; inspect the distinct external-address faucet path before applying those rules to it. Use the existing `ApiError`/`ApiResult` pattern and repository test seams. Run Rust checks after `crates/` changes and select a live Docker case when a real proof, node, or retained wallet store is necessary to establish the claim.
+Keep accounts 1–5 user-facing and account 6 internal. Preserve the wallet snapshot as the balance source. For account Send and faucet, retain the claim-before-work pattern (`claim_transfer` / `claim_faucet` / `claim_address_faucet` persist intent keyed by the idempotency key before any wallet call), transaction identity, and activity recovery; the address faucet keeps the same contract in its own `address_faucets` table. Use the existing `ApiError`/`ApiResult` pattern and repository test seams. Run Rust checks after `crates/` changes and select a live Docker case when a real proof, node, or retained wallet store is necessary to establish the claim.
 
 ## Core workflow
 
@@ -20,4 +20,4 @@ Keep accounts 1–5 user-facing and account 6 internal. Preserve the wallet snap
 
 - A pending Send replay returns the stored activity but can still drive `submit_prepared` → broadcast and mining. Check activity identity and side effects separately.
 - A wallet sync may publish new account balances before later activity reconciliation fails. Inspect status and balance publication at the actual failure step.
-- The public-address faucet and account faucet have different request and persistence contracts — the external path has no idempotency key or activity row. Name the selected endpoint before claiming idempotency or recovery behavior.
+- The account faucet and address faucet share the claim-before-work contract and one idempotency key space, but persist in different tables (`activities` vs `address_faucets`) — a key used by one is rejected by the other. Name the selected endpoint before claiming its recovery behavior.
