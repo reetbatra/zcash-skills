@@ -46,4 +46,12 @@ There is no build. Before committing, verify:
 - `index.html`'s embedded manifest is current — run
   `python3 docs/gen-manifest.py` after adding/removing `.md` files;
 - versioned claims (heights, image tags, crate versions) match
-  `docs/versioned-facts.md` — `python3 docs/check-facts.py` must pass.
+  `docs/versioned-facts.md` — `python3 docs/check-facts.py` must pass
+  (`--upstream` also compares each fact with its upstream oracle);
+- `python3 -m unittest discover -s tests` passes if you touched `docs/*.py`.
+
+On a PR, list the upstream files, ZIPs or docs pages behind your changes under
+`Source(s) of truth:` in the description. The `fact-check` workflow checks every
+added line against them, the facts file, the ZIPs and THS/Zakura source, and
+comments with the result; only a contradiction fails it. Run it locally with
+`python3 docs/verify-claims.py --base <base-branch>`.
