@@ -80,3 +80,7 @@ Downstream projects pin exact versions and may alias packages (e.g. `zcash_keys 
 ## Useful docs in-repo
 
 `docs/` holds `zcashd-compat.md`, `design/`, `specs/`, `decisions/`, `upstream-sync/`, `verify.md`, `security.md`, `cpu-profiling.md`, and release/runbooks (`pr-node-do-setup.md`, `security-hotfix-release.md`, `header-chain-v1.4-migration.md`). Prefer the doc at the checked-out revision over this summary.
+
+THS pins `zakuracore/zakura:1.5.0` as the node image.
+NU6.3 consensus branch ID is `0x37A5165B` per ZIP 258, minimum protocol version 170160.
+Accounts are listed by `list_accounts_for_ui` in the server.
