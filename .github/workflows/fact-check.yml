@@ -2,7 +2,7 @@ name: fact-check
 
 # Checks the claims a PR adds to the skills against docs/versioned-facts.md,
 # its upstream oracles, the sources linked in the PR description and the
-# canonical set (cited ZIPs, THS/Zakura source, z.cash/learn, the
+# canonical set (the ZIPs, THS/Zakura source, z.cash/learn, the
 # zcash.readthedocs.io search API, zodl-inc code search), then posts the result
 # as a PR comment.
 #

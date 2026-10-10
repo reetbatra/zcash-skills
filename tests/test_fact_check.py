@@ -2,7 +2,9 @@
 
     python3 -m unittest discover -s tests
 """
+import contextlib
 import importlib.util
+import io
 import json
 import os
 import re
@@ -64,9 +66,14 @@ def fake_fetch(pages, calls=None):
     return fetch
 
 
+ZIPS = {"zips/zip-0259.md": ZIP_259, "zips/zip-0032.rst": "Hardened derivation uses 2^31.\n", "README.rst": "0x5BA81B19\n"}
+
+
 def fake_archive(url):
     if "thus-spoke-zakura" in url:
         return REPO
+    if "zcash/zips" in url:
+        return ZIPS
     raise cf.UpstreamError(f"{url}: unreachable")
 
 
@@ -81,6 +88,11 @@ def run(lines, links=(), pages=None, path="skills/zakura/SKILL.md", facts=FACTS,
     results, _, sources = vc.verify(vc.parse_diff(diff), facts, list(links), fake_fetch(pages, calls), fake_archive,
                                     token=token, sleep=sleep or (lambda s: None))
     return results, sources
+
+
+def run_full(lines):
+    results, sources = run(lines)
+    return results, [], sources
 
 
 def rtd_response(*blocks, path="/en/latest/rtd_pages/zig.html"):
@@ -334,6 +346,10 @@ class ContainsTests(unittest.TestCase):
         self.assertTrue(vc.contains("height 4465026.", "4,465,026"))
         self.assertFalse(vc.contains("height 44650260", "4465026"))
 
+    def test_hex_ids_match_in_either_case_but_not_inside_longer_hex(self):
+        self.assertTrue(vc.contains("branch id ``0xc2d6d0b4``", "0xC2D6D0B4"))
+        self.assertFalse(vc.contains("0xC2D6D0B4FF", "0xC2D6D0B4"))
+
     def test_upstream_name_search_uses_whole_words(self):
         results, _ = run(["Use `ths` here."])  # "ths" only appears inside ths-server
         self.assertEqual(results[0]["verdict"], "⚠️")
@@ -353,6 +369,15 @@ class CanonicalSetTests(unittest.TestCase):
         self.assertFalse(any("evil.example" in u for u, _ in calls))
         self.assertEqual(sources.learn_articles, 3)
 
+    def test_uncited_values_are_checked_against_every_zip(self):
+        results, sources = run(["NU7 uses branch ID `0x77190AD9`."])  # no ZIP cited, no PR source
+        self.assertEqual(results[0]["verdict"], "✅")
+        self.assertIn("[zip-0259.md](https://zips.z.cash/zip-0259)", results[0]["evidence"])
+        results, _ = run(["Sapling uses `0x5BA81B19`."])  # only outside zips/, so not a ZIP
+        self.assertEqual(results[0]["verdict"], "⚠️")
+        self.assertIn("the ZIP index", results[0]["evidence"])
+        self.assertIn("the ZIP index", vc.render(*run_full(["NU7 uses branch ID `0x77190AD9`."])))
+
     def test_learn_index_without_articles_is_reported_as_such(self):
         results, _ = run(["`zebrad` syncs."], pages={"https://z.cash/learn/": "<html>redesigned</html>"})
         self.assertIn("z.cash/learn (no articles found)", results[0]["evidence"])
@@ -369,9 +394,9 @@ class CanonicalSetTests(unittest.TestCase):
 
     def test_readthedocs_query_uses_the_project_filter(self):
         calls = []
-        run(["Height 4,465,026."], pages={vc.RTD_SEARCH + "*": rtd_response("nothing")}, calls=calls)
+        run(["Height 7,777,777."], pages={vc.RTD_SEARCH + "*": rtd_response("nothing")}, calls=calls)
         q = next(u for u, _ in calls if u.startswith(vc.RTD_SEARCH))
-        self.assertEqual(urllib.parse.unquote(q[len(vc.RTD_SEARCH):]), 'project:zcash "4465026"')
+        self.assertEqual(urllib.parse.unquote(q[len(vc.RTD_SEARCH):]), 'project:zcash "7777777"')
 
     def test_readthedocs_is_capped_per_run(self):
         names = [f"`name_{i}`" for i in range(vc.RTD_MAX_QUERIES + 3)]
@@ -512,6 +537,45 @@ class CliTests(unittest.TestCase):
             os.unlink(fh.name)
         self.assertEqual(out.returncode, 0, out.stderr)
         self.assertIn("No added lines", out.stdout)
+
+    def test_base_mode_takes_facts_from_the_base_ref_not_the_branch(self):
+        # A throwaway repo: the base pins 1.6.0. The branch rewrites the fact's pattern so
+        # nothing matches, then claims 9.9.9. Only the base's fact can catch that.
+        facts = "```facts\nid: img\nvalue: zakuracore/zakura:1.6.0\npattern: zakuracore/zakura:[0-9.]+\n```\n"
+        with tempfile.TemporaryDirectory() as repo:
+            def git(*args):
+                subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", *args],
+                               cwd=repo, check=True, capture_output=True)
+
+            def write(rel, text):
+                os.makedirs(os.path.dirname(os.path.join(repo, rel)), exist_ok=True)
+                with open(os.path.join(repo, rel), "w", encoding="utf-8") as fh:
+                    fh.write(text)
+            git("init", "-q", "-b", "base")
+            write("docs/versioned-facts.md", facts)
+            write("skills/a.md", "x\n")
+            git("add", "-A")
+            git("commit", "-qm", "base")
+            git("checkout", "-qb", "pr")
+            write("docs/versioned-facts.md", facts.replace("pattern: zakuracore/zakura:[0-9.]+", "pattern: matches-nothing"))
+            write("skills/a.md", "x\nPins `zakuracore/zakura:9.9.9`.\n")
+            git("commit", "-qam", "pr")
+
+            out = io.StringIO()
+            saved = (vc.ROOT, vc.check_facts.fetch, vc.fetch_archive, sys.argv, os.environ.pop("GITHUB_TOKEN", None), os.environ.pop("GH_TOKEN", None))
+            vc.ROOT, vc.check_facts.fetch, vc.fetch_archive = repo, fake_fetch({}), fake_archive
+            sys.argv = ["verify-claims.py", "--base", "base"]
+            try:
+                with contextlib.redirect_stdout(out):
+                    code = vc.main()
+            finally:
+                vc.ROOT, vc.check_facts.fetch, vc.fetch_archive, sys.argv = saved[:4]
+                for key, value in (("GITHUB_TOKEN", saved[4]), ("GH_TOKEN", saved[5])):
+                    if value is not None:
+                        os.environ[key] = value
+        self.assertEqual(code, 1, out.getvalue())
+        self.assertIn("conflicts with img = `zakuracore/zakura:1.6.0`", out.getvalue())
+        self.assertIn("pattern: matches-nothing", out.getvalue())  # the rewritten pattern is a claim, not config
 
     def test_facts_cannot_be_supplied_on_the_command_line(self):
         out = subprocess.run([sys.executable, os.path.join(ROOT, "docs", "verify-claims.py"), "--diff", os.devnull, "--facts", "x"],

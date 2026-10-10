@@ -18,7 +18,8 @@ hex IDs and backticked names. Each claim goes through three steps:
 3. The canonical set, whether or not the author linked anything: the ZIPs the
    line cites; zcashlabs/thus-spoke-zakura and zakura-core/zakura source (one
    tarball each), where a backticked name must appear and a backticked path
-   must exist; the z.cash/learn articles; the zcash.readthedocs.io search API;
+   must exist; every ZIP in zcash/zips (one tarball); the z.cash/learn
+   articles; the zcash.readthedocs.io search API;
    and GitHub code search over the zodl-inc org (needs GITHUB_TOKEN or
    GH_TOKEN, and is rate limited, so it is capped per run).
 
@@ -68,7 +69,8 @@ CANONICAL_REPOS = [
 ARCHIVE_MAX_BYTES = 50_000_000
 ARCHIVE_TIMEOUT = 60
 SOURCE_FILE_MAX_BYTES = 1_000_000
-TEXT_EXTENSIONS = (".rs", ".toml", ".md", ".ts", ".tsx", ".js", ".yml", ".yaml", ".sh", ".json", ".sql", ".proto")
+ZIPS_REPO = ("zcash/zips", "main")
+TEXT_EXTENSIONS = (".rs", ".toml", ".md", ".rst", ".ts", ".tsx", ".js", ".yml", ".yaml", ".sh", ".json", ".sql", ".proto")
 
 # A line longer than this is not parsed at all: no value extraction and no fact
 # pattern runs over it. It is left for a human.
@@ -265,6 +267,8 @@ def contains(text, value):
     """True when `value` was actually seen in `text`, not just as part of a longer word."""
     if re.fullmatch(r"[\d,]+", value):
         return re.search(rf"(?<!\d){re.escape(value.replace(',', ''))}(?!\d)", text.replace(",", "")) is not None
+    if HEX_RE.fullmatch(value):  # hex IDs are written in either case (ZIPs use lowercase)
+        return re.search(rf"(?<![0-9A-Za-z]){re.escape(value)}(?![0-9A-Za-z])", text, re.I) is not None
     if re.fullmatch(r"\w+", value):
         return re.search(rf"\b{re.escape(value)}\b", text) is not None
     return value in text
@@ -378,6 +382,18 @@ class Sources:
             for path, body in (files or {}).items():
                 if contains(body, value):
                     return (f"{name.split('/')[1]}/{path}", None), None
+        return None, None
+
+    # The ZIP index: every ZIP, for values a line doesn't cite a ZIP for
+
+    def zip_index(self, value):
+        files = self.repo(*ZIPS_REPO)
+        if files is None:
+            return None, "unreachable"
+        for path in sorted(files):
+            m = re.fullmatch(r"zips/(zip-\d{4})\.(?:md|rst)", path)
+            if m and contains(files[path], value):
+                return (path.split("/")[1], f"https://zips.z.cash/{m.group(1)}"), None
         return None, None
 
     # z.cash/learn
@@ -581,6 +597,7 @@ def verify(claims, facts, links, fetch, fetch_archive=fetch_archive, token=None,
             found = next(((name, None) for name, body in zips if body and contains(body, v)), None)
             lookups = [
                 ("THS/Zakura source", sources.find_upstream if v in backticked else None),
+                ("the ZIP index", sources.zip_index),
                 ("z.cash/learn", sources.learn),
                 ("zcash.readthedocs.io", sources.readthedocs),
                 ("zodl-inc code search", sources.zodl),
@@ -625,8 +642,10 @@ def plural(n, one, many):
 def coverage(sources):
     """Which canonical sources this run actually reached."""
     used = ["the ZIPs each line cites"]
-    if any(files is not None for files in sources._repos.values()):
+    if any(sources._repos.get(name) is not None for name, _ in CANONICAL_REPOS):
         used.append("THS/Zakura source")
+    if sources._repos.get(ZIPS_REPO[0]) is not None:
+        used.append("the ZIP index")
     if sources.learn_articles:
         used.append(f"z.cash/learn ({plural(sources.learn_articles, 'article', 'articles')})")
     if sources.rtd_queries:
@@ -703,7 +722,7 @@ def main():
     body = open(args.body, encoding="utf-8").read() if args.body else ""
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
 
-    results, provided, sources = verify(parse_diff(diff), facts, source_links(body), check_facts.fetch, token=token)
+    results, provided, sources = verify(parse_diff(diff), facts, source_links(body), check_facts.fetch, fetch_archive, token=token)
     report = render(results, provided, sources)
     if args.report:
         with open(args.report, "w", encoding="utf-8") as fh:
