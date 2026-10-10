@@ -3,11 +3,16 @@
     python3 -m unittest discover -s tests
 """
 import importlib.util
+import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
+import urllib.parse
+import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -26,14 +31,33 @@ FACTS = [
     {"id": "zakura-image", "value": "zakuracore/zakura:1.6.0", "pattern": r"zakuracore/zakura:[0-9a-zA-Z.\-]+",
      "upstream": "https://raw.githubusercontent.com/o/r/main/runtime.rs", "extract": r'const ZAKURA_IMAGE: &str = "([^"]+)"'},
     {"id": "faucet", "kind": "forbid", "pattern": r"faucet has no idempotency", "source": "api.rs"},
+    {"id": "ths-version", "value": "ths 0.3.0", "pattern": r"ths \d+\.\d+\.\d+"},
 ]
 RUNTIME_RS = 'const ZAKURA_IMAGE: &str = "zakuracore/zakura:1.6.0";\n'
 ZIP_259 = "CONSENSUS_BRANCH_ID\n: `0x77190AD9`\n\nACTIVATION_HEIGHT (NU7)\n: Testnet: 4465026\n: Mainnet: TBD\n"
 REPO = {"crates/ths-server/src/db.rs": "fn claim_address_faucet() {}\n", "Cargo.toml": '[workspace.package]\nversion = "0.3.0"\n'}
+LEARN_INDEX_HTML = (
+    '<html><a href="/learn/what-is-zcash/">a</a> <a href="https://z.cash/learn/what-are-zk-snarks/?x=1">b</a> '
+    '<a href="https://z.cash/learn/feed/">feed</a> <a href="https://z.cash/learn/page/2/">2</a> '
+    '<a href="https://evil.example/learn/x/">x</a></html>'
+)
+LEARN = {
+    "https://z.cash/learn/": LEARN_INDEX_HTML,
+    "https://z.cash/learn/page/2/": '<html><a href="/learn/run-a-zcash-full-node/">c</a></html>',
+    "https://z.cash/learn/what-is-zcash/": "<html><p>Zcash launched in 2016.</p></html>",
+    "https://z.cash/learn/what-are-zk-snarks/": "<html><p>Halo 2 removed the trusted setup.</p></html>",
+    "https://z.cash/learn/run-a-zcash-full-node/": "<html><p>Run <code>zebrad</code> &amp; sync.</p></html>",
+}
 
 
-def fake_fetch(pages):
+def fake_fetch(pages, calls=None):
+    """Exact URLs map to text; a key ending in * matches by prefix and maps to a function of the URL."""
     def fetch(url, headers=None):
+        if calls is not None:
+            calls.append((url, headers))
+        for key, page in pages.items():
+            if key.endswith("*") and url.startswith(key[:-1]):
+                return page(url)
         if pages.get(url) is None:
             raise cf.UpstreamError(f"{url}: HTTP Error 404: Not Found")
         return pages[url]
@@ -51,10 +75,22 @@ def diff_for(path, *lines, start=10):
     return f"diff --git a/{path} b/{path}\n--- a/{path}\n+++ b/{path}\n@@ -{start},1 +{start},{len(lines) + 1} @@\n context\n{added}"
 
 
-def run(lines, links=(), pages=None, path="skills/zakura/SKILL.md"):
+def run(lines, links=(), pages=None, path="skills/zakura/SKILL.md", facts=FACTS, diff=None, token=None, calls=None, sleep=None):
     pages = {FACTS[0]["upstream"]: RUNTIME_RS, **(pages or {})}
-    results, _, sources = vc.verify(vc.parse_diff(diff_for(path, *lines)), FACTS, list(links), fake_fetch(pages), fake_archive)
+    diff = diff if diff is not None else diff_for(path, *lines)
+    results, _, sources = vc.verify(vc.parse_diff(diff), facts, list(links), fake_fetch(pages, calls), fake_archive,
+                                    token=token, sleep=sleep or (lambda s: None))
     return results, sources
+
+
+def rtd_response(*blocks, path="/en/latest/rtd_pages/zig.html"):
+    return lambda url: json.dumps({"count": 1, "results": [{"path": path, "blocks": [{"content": b} for b in blocks]}]})
+
+
+def code_response(*fragments, repo="zodl-inc/zcash-android-wallet-sdk", path="sdk/Foo.kt"):
+    return lambda url: json.dumps({"total_count": 1, "items": [
+        {"path": path, "html_url": f"https://github.com/{repo}/blob/main/{path}", "repository": {"full_name": repo},
+         "text_matches": [{"fragment": f} for f in fragments]}]})
 
 
 class ParseTests(unittest.TestCase):
@@ -68,11 +104,23 @@ class ParseTests(unittest.TestCase):
         for path in ("SKILL.md", "skills/zcash/SKILL.md", "docs/versioned-facts.md"):
             self.assertEqual(len(vc.parse_diff(diff_for(path, "x"))), 1)
 
-    def test_versioned_facts_only_counts_rows_and_values(self):
-        self.assertTrue(vc.is_claim("docs/versioned-facts.md", "| Pinned node image | `zakuracore/zakura:1.6.0` |"))
-        self.assertTrue(vc.is_claim("docs/versioned-facts.md", "value: 0x77190AD9"))
-        self.assertFalse(vc.is_claim("docs/versioned-facts.md", "pattern: 0x77190AD9"))
-        self.assertFalse(vc.is_claim("docs/versioned-facts.md", "A block may instead set `kind: forbid`"))
+    def test_every_versioned_facts_line_is_a_claim(self):
+        path = "docs/versioned-facts.md"
+        for line in ("| Pinned node image | `zakuracore/zakura:1.6.0` |", "value: 0x77190AD9", "pattern: 0x77190AD9",
+                     "upstream: https://example.com/x", "extract: (.*)", "kind: forbid", "```facts", "A block may set `kind`"):
+            with self.subTest(line):
+                self.assertTrue(vc.is_claim(path, line))
+        self.assertFalse(vc.is_claim(path, "   "))
+        self.assertFalse(vc.is_claim(path, "| --- | --- |"))
+        self.assertFalse(vc.is_claim("skills/zcash/SKILL.md", "```bash"))
+
+    def test_directives_are_fact_definition_lines_other_than_value(self):
+        path = "docs/versioned-facts.md"
+        for line in ("id: x", "pattern: y", "upstream: z", "extract: (.)", "kind: forbid", "source: a", "verified: 2026-10-10", "```"):
+            self.assertTrue(vc.is_directive(path, line), line)
+        for line in ("value: 1.6.0", "| Fact | Value |", "Each block maps a `pattern`"):
+            self.assertFalse(vc.is_directive(path, line), line)
+        self.assertFalse(vc.is_directive("skills/zakura/SKILL.md", "pattern: y"))
 
     def test_values_skip_dates_zip_numbers_links_and_placeholders(self):
         line = ("NU7 Testnet height 4,465,026 (2026-10-06), see ZIP 2003 and [ZIP 259](https://zips.z.cash/zip-0259); "
@@ -82,6 +130,132 @@ class ParseTests(unittest.TestCase):
     def test_template_example_links_are_not_sources(self):
         body = "Fix.\n\nSource(s) of truth:\n<!-- e.g. https://zips.z.cash/zip-0259 -->\n- https://zips.z.cash/zip-0258.\n"
         self.assertEqual(vc.source_links(body), ["https://zips.z.cash/zip-0258"])
+
+    def test_unclosed_comment_hides_the_rest_in_linear_time(self):
+        self.assertEqual(vc.source_links("https://zips.z.cash/zip-0258 <!-- https://zips.z.cash/zip-0259"), ["https://zips.z.cash/zip-0258"])
+        started = time.monotonic()
+        vc.source_links("<!--" * 50_000)
+        self.assertLess(time.monotonic() - started, 1.0)
+
+
+class TrustBoundaryTests(unittest.TestCase):
+    """Review of #4: verdicts never depend on anything the PR controls."""
+
+    def verdicts(self, results):
+        return {r["text"]: r["verdict"] for r in results}
+
+    def test_pr_cannot_mint_verified_by_editing_the_facts_file(self):
+        # The PR rewrites the fact and its oracle, then claims the new value.
+        facts_diff = diff_for("docs/versioned-facts.md", "value: zakuracore/zakura:9.9.9", "pattern: .*",
+                              "upstream: https://evil.example/runtime.rs")
+        skill_diff = diff_for("skills/zakura/SKILL.md", "THS pins `zakuracore/zakura:9.9.9`.")
+        calls = []
+        results, _ = run([], diff=facts_diff + skill_diff, calls=calls)
+        v = self.verdicts(results)
+        self.assertEqual(v["THS pins `zakuracore/zakura:9.9.9`."], "❌")  # the base oracle still says 1.6.0
+        self.assertEqual(v["value: zakuracore/zakura:9.9.9"], "❌")
+        self.assertEqual(v["pattern: .*"], "⚠️")
+        self.assertEqual(v["upstream: https://evil.example/runtime.rs"], "⚠️")
+        self.assertFalse(any("evil.example" in url for url, _ in calls))
+
+    def test_directive_lines_are_left_for_review_and_not_parsed(self):
+        results, _ = run(["kind: forbid", "pattern: zakuracore/zakura:1.5.0", "extract: (.*)"], path="docs/versioned-facts.md")
+        self.assertEqual([r["verdict"] for r in results], ["⚠️"] * 3)
+        self.assertTrue(all(r.get("directive") for r in results))
+        self.assertIn("fact definition", results[0]["evidence"])
+
+    def test_fact_update_without_an_oracle_is_left_for_review(self):
+        diff = diff_for("docs/versioned-facts.md", "value: ths 0.4.0") + diff_for("skills/ths/SKILL.md", "Install ths 0.4.0 first.")
+        results, _ = run([], diff=diff)
+        self.assertEqual(set(self.verdicts(results).values()), {"⚠️"})
+        self.assertIn("this PR changes that fact", results[1]["evidence"])
+
+    def test_value_that_disagrees_with_base_fact_fails_when_the_pr_does_not_change_it(self):
+        results, _ = run(["Install ths 0.4.0 first."])
+        self.assertEqual(results[0]["verdict"], "❌")
+        self.assertIn("ths-version", results[0]["evidence"])
+
+    def test_bump_that_matches_the_base_oracle_is_verified_with_a_note(self):
+        moved = {FACTS[0]["upstream"]: 'const ZAKURA_IMAGE: &str = "zakuracore/zakura:1.7.0";'}
+        results, _ = run(["THS pins `zakuracore/zakura:1.7.0`."], pages=moved)
+        self.assertEqual(results[0]["verdict"], "✅")
+        self.assertIn("still says", results[0]["evidence"])
+
+    def test_non_allowlisted_oracle_is_never_fetched(self):
+        facts = [dict(FACTS[0], upstream="https://evil.example/runtime.rs")]
+        calls = []
+        results, _ = run(["THS pins `zakuracore/zakura:1.6.0`."], facts=facts, calls=calls)
+        self.assertEqual(results[0]["verdict"], "⚠️")
+        self.assertIn("oracle host not allowed", results[0]["evidence"])
+        self.assertFalse(any("evil.example" in url for url, _ in calls))
+
+    def test_long_lines_are_not_parsed(self):
+        line = "THS pins `zakuracore/zakura:1.5.0`. " + "a" * vc.MAX_CLAIM_CHARS
+        calls = []
+        results, _ = run([line], calls=calls)
+        self.assertEqual(results[0]["verdict"], "⚠️")  # would be ❌ if the pattern had run
+        self.assertTrue(results[0].get("prose"))
+        self.assertEqual(calls, [])
+
+    def test_workflow_reads_facts_from_the_base_checkout_only(self):
+        with open(os.path.join(ROOT, ".github", "workflows", "fact-check.yml"), encoding="utf-8") as fh:
+            wf = fh.read()
+        for banned in ("refs/pull", "FETCH_HEAD", "--facts", "git show"):
+            self.assertNotIn(banned, wf)
+        self.assertRegex(wf, r"(?m)^\s+issues: write\b")
+        self.assertRegex(wf, r"(?m)^\s+pull-requests: write\b")
+        self.assertIn("persist-credentials: false", wf)
+
+
+class HostAllowlistTests(unittest.TestCase):
+    def test_host_allowed(self):
+        self.assertTrue(cf.host_allowed("https://raw.githubusercontent.com/a/b/main/c.rs"))
+        self.assertTrue(cf.host_allowed("https://api.github.com/search/code?q=x"))
+        for url in ("http://raw.githubusercontent.com/a", "https://evil.example/", "https://raw.githubusercontent.com:8443/a",
+                    "https://raw.githubusercontent.com@evil.example/a", "https://user@zips.z.cash/", "https://zips.z.cash:bad/",
+                    "file:///etc/passwd", "https://z.cash.evil.example/"):
+            self.assertFalse(cf.host_allowed(url), url)
+        self.assertFalse(cf.host_allowed("https://api.github.com/x", cf.ORACLE_HOSTS))
+
+    def test_fetch_refuses_hosts_off_the_allowlist_without_connecting(self):
+        with self.assertRaises(cf.HostNotAllowed):
+            cf.fetch("https://evil.example/")
+
+    def test_redirects_off_the_allowlist_are_refused(self):
+        handler = cf._AllowlistRedirects()
+        req = urllib.request.Request("https://raw.githubusercontent.com/a/b/main/c.rs")
+        with self.assertRaises(cf.HostNotAllowed):
+            handler.redirect_request(req, None, 302, "Found", {}, "https://evil.example/c.rs")
+
+    def test_authorization_is_not_forwarded_on_redirect(self):
+        handler = cf._AllowlistRedirects()
+        req = urllib.request.Request("https://api.github.com/search/code?q=x")
+        req.add_unredirected_header("Authorization", "Bearer t")
+        new = handler.redirect_request(req, None, 302, "Found", {}, "https://raw.githubusercontent.com/a")
+        self.assertIsNone(new.get_header("Authorization"))
+
+    def test_upstream_value_refuses_disallowed_oracles(self):
+        called = []
+        with self.assertRaises(cf.HostNotAllowed):
+            cf.upstream_value({"upstream": "https://evil.example/x", "extract": "(.*)"}, fetch=lambda u: called.append(u))
+        self.assertEqual(called, [])
+
+    def test_check_facts_rejects_bad_oracle_definitions(self):
+        self.assertEqual(cf.definition_errors({"id": "a", "value": "1"}), [])
+        self.assertIn("no `extract`", cf.definition_errors({"id": "a", "upstream": "https://zips.z.cash/x"})[0])
+        self.assertIn("not https on an allowed host", cf.definition_errors({"id": "a", "upstream": "https://evil.example/x", "extract": "(.)"})[0])
+        self.assertEqual(cf.definition_errors({"id": "a", "upstream": "https://zips.z.cash/x", "extract": "(.)"}), [])
+
+    def test_disallowed_pr_source_is_listed_not_fetched(self):
+        fetched = []
+
+        def fetch(url, headers=None):
+            fetched.append(url)
+            return RUNTIME_RS
+        _, provided, _ = vc.verify(vc.parse_diff(diff_for("SKILL.md", "x")), FACTS,
+                                   ["https://example.com/post", "http://zips.z.cash/zip-0259"], fetch, fake_archive)
+        self.assertEqual(fetched, [])
+        self.assertEqual([p[1] for p in provided], [None, None])
 
 
 class VerdictTests(unittest.TestCase):
@@ -131,24 +305,114 @@ class VerdictTests(unittest.TestCase):
         self.assertEqual(self.verdicts(results), ["✅"])
         self.assertIn("thus-spoke-zakura/crates/ths-server/src/db.rs", results[0]["evidence"])
 
-    def test_unknown_name_is_left_for_review(self):
+    def test_unknown_name_is_left_for_review_and_says_what_was_not_consulted(self):
         results, _ = run(["Call `list_accounts_for_ui` first."])
         self.assertEqual(self.verdicts(results), ["⚠️"])
-        self.assertIn("`list_accounts_for_ui` not found", results[0]["evidence"])
+        ev = results[0]["evidence"]
+        self.assertIn("`list_accounts_for_ui` not found in THS/Zakura source", ev)
+        self.assertIn("zodl-inc code search (no GITHUB_TOKEN)", ev)
+        self.assertIn("z.cash/learn (unreachable)", ev)
 
     def test_line_with_nothing_to_match_is_prose(self):
         results, _ = run(["Prefer evidence over memory."])
         self.assertTrue(results[0].get("prose"))
 
-    def test_disallowed_host_is_listed_not_fetched(self):
-        fetched = []
 
-        def fetch(url, headers=None):
-            fetched.append(url)
-            return RUNTIME_RS
-        _, provided, _ = vc.verify(vc.parse_diff(diff_for("SKILL.md", "x")), FACTS, ["https://example.com/post", "http://zips.z.cash/zip-0259"], fetch, fake_archive)
-        self.assertEqual(fetched, [])
-        self.assertEqual([p[1] for p in provided], [None, None])
+class ContainsTests(unittest.TestCase):
+    def test_word_tokens_need_a_whole_word(self):
+        self.assertFalse(vc.contains("networking stack", "network"))
+        self.assertFalse(vc.contains("fn test_main() {}", "test"))
+        self.assertFalse(vc.contains("mainnet", "main"))
+        self.assertTrue(vc.contains("the network upgrade", "network"))
+        self.assertTrue(vc.contains("(regtest_network)", "regtest_network"))
+
+    def test_punctuated_tokens_match_as_substrings(self):
+        self.assertTrue(vc.contains('image = "zakuracore/zakura:1.6.0";', "zakuracore/zakura:1.6.0"))
+        self.assertTrue(vc.contains("see crates/ths-server/src/db.rs:10", "ths-server/src/db.rs"))
+
+    def test_numbers_ignore_digit_grouping_but_not_neighbouring_digits(self):
+        self.assertTrue(vc.contains("height 4465026.", "4,465,026"))
+        self.assertFalse(vc.contains("height 44650260", "4465026"))
+
+    def test_upstream_name_search_uses_whole_words(self):
+        results, _ = run(["Use `ths` here."])  # "ths" only appears inside ths-server
+        self.assertEqual(results[0]["verdict"], "⚠️")
+
+
+class CanonicalSetTests(unittest.TestCase):
+    """Item 3 of the review: the canonical set is consulted without author links."""
+
+    def test_learn_articles_are_crawled_once_and_searched(self):
+        calls = []
+        results, sources = run(["`zebrad` syncs the chain.", "Since 2016 `zebrad` runs."], pages=LEARN, calls=calls)
+        self.assertEqual(results[0]["verdict"], "✅")
+        self.assertIn("learn/run-a-zcash-full-node", results[0]["evidence"])
+        fetched = [u for u, _ in calls if "z.cash" in u]
+        self.assertEqual(len(fetched), len(set(fetched)))  # one fetch per page per run
+        self.assertNotIn("https://z.cash/learn/feed/", fetched)
+        self.assertFalse(any("evil.example" in u for u, _ in calls))
+        self.assertEqual(sources.learn_articles, 3)
+
+    def test_learn_index_without_articles_is_reported_as_such(self):
+        results, _ = run(["`zebrad` syncs."], pages={"https://z.cash/learn/": "<html>redesigned</html>"})
+        self.assertIn("z.cash/learn (no articles found)", results[0]["evidence"])
+
+    def test_readthedocs_search_confirms_exact_matches_only(self):
+        pages = {vc.RTD_SEARCH + "*": rtd_response("This API can send through the z_sendmany call.")}
+        results, sources = run(["Use `z_sendmany` to send."], pages=pages)
+        self.assertEqual(results[0]["verdict"], "✅")
+        self.assertIn("readthedocs zig.html", results[0]["evidence"])
+        self.assertIn("https://zcash.readthedocs.io/en/latest/rtd_pages/zig.html", results[0]["evidence"])
+        results, _ = run(["Use `z_send` to send."], pages=pages)  # only a prefix of z_sendmany
+        self.assertEqual(results[0]["verdict"], "⚠️")
+        self.assertIn("zcash.readthedocs.io", results[0]["evidence"])
+
+    def test_readthedocs_query_uses_the_project_filter(self):
+        calls = []
+        run(["Height 4,465,026."], pages={vc.RTD_SEARCH + "*": rtd_response("nothing")}, calls=calls)
+        q = next(u for u, _ in calls if u.startswith(vc.RTD_SEARCH))
+        self.assertEqual(urllib.parse.unquote(q[len(vc.RTD_SEARCH):]), 'project:zcash "4465026"')
+
+    def test_readthedocs_is_capped_per_run(self):
+        names = [f"`name_{i}`" for i in range(vc.RTD_MAX_QUERIES + 3)]
+        calls = []
+        results, sources = run([" ".join(names)], pages={vc.RTD_SEARCH + "*": rtd_response("nothing")}, calls=calls)
+        self.assertEqual(sources.rtd_queries, vc.RTD_MAX_QUERIES)
+        self.assertIn("per-run cap", results[0]["evidence"])
+
+    def test_zodl_code_search_with_token(self):
+        calls, slept = [], []
+        pages = {vc.CODE_SEARCH + "*": code_response("val accountUuid = AccountUuid(bytes)")}
+        results, sources = run(["`AccountUuid` and `accountUuid` are wallet ids."], pages=pages, token="t0k", calls=calls,
+                               sleep=slept.append)
+        self.assertEqual(results[0]["verdict"], "✅")
+        self.assertIn("zodl-inc/zcash-android-wallet-sdk/sdk/Foo.kt", results[0]["evidence"])
+        searches = [(u, h) for u, h in calls if u.startswith(vc.CODE_SEARCH)]
+        self.assertEqual(len(searches), 2)
+        self.assertEqual(searches[0][1]["Authorization"], "Bearer t0k")
+        self.assertIn(urllib.parse.quote('org:zodl-inc "AccountUuid"'), searches[0][0])
+        self.assertEqual(slept, [vc.CODE_SEARCH_INTERVAL])  # spaced out, not before the first call
+        self.assertTrue(all(h is None or "Authorization" not in h for u, h in calls if not u.startswith(vc.CODE_SEARCH)))
+
+    def test_zodl_code_search_stops_after_a_rate_limit(self):
+        def limited(url):
+            raise cf.UpstreamError(f"{url}: HTTP Error 403: rate limit exceeded")
+        calls = []
+        results, sources = run(["`first_name` then `second_name`."], pages={vc.CODE_SEARCH + "*": limited}, token="t", calls=calls)
+        self.assertEqual(len([u for u, _ in calls if u.startswith(vc.CODE_SEARCH)]), 1)
+        self.assertIn("zodl-inc code search (search failed)", results[0]["evidence"])
+        self.assertEqual(sources.code_stopped, "rate limited")
+
+    def test_zodl_code_search_is_capped_per_run(self):
+        names = " ".join(f"`name_{i}`" for i in range(vc.CODE_SEARCH_MAX + 2))
+        _, sources = run([names], pages={vc.CODE_SEARCH + "*": code_response("nothing")}, token="t")
+        self.assertEqual(sources.code_queries, vc.CODE_SEARCH_MAX)
+
+    def test_odd_search_payloads_do_not_crash(self):
+        for payload in ("[]", '{"results": 3}', '{"results": [1, {"blocks": "x"}]}', "not json"):
+            with self.subTest(payload):
+                results, _ = run(["Use `z_sendmany`."], pages={vc.RTD_SEARCH + "*": lambda url, p=payload: p})
+                self.assertEqual(results[0]["verdict"], "⚠️")
 
 
 class ReportTests(unittest.TestCase):
@@ -160,6 +424,44 @@ class ReportTests(unittest.TestCase):
 
     def test_pipes_in_claims_do_not_break_the_table(self):
         self.assertEqual(vc.cell("a | b"), "a \\| b")
+
+    def test_cell_escapes_links_html_code_and_mentions(self):
+        out = vc.cell("[x](https://evil.example) ![i](u) <img src=x onerror=alert(1)> `c` \\| @someone &amp;")
+        for ch in "[]<>`":
+            self.assertNotIn(ch, out)
+        self.assertNotIn("@someone", out)
+        self.assertNotIn("\\\\|", out)  # a PR backslash cannot unescape our pipe escape
+        self.assertIn("&amp;amp;", out)
+
+    def test_report_has_no_markup_from_the_pr(self):
+        line = "See [docs](https://evil.example) <details open> `<img src=x>` and `a|b` @maintainer"
+        path = "skills/x<b>`y`.md"
+        results, sources = run([line], path=path)
+        report = vc.render(results, [], sources)
+        body = report.split("\n", 1)[1]
+        self.assertNotIn("<img", body)
+        self.assertNotIn("<b>", body)
+        self.assertNotIn("<details open>", body)
+        self.assertNotIn("](https://evil.example", body)
+        self.assertNotIn("@maintainer", body)
+        table = [l for l in body.splitlines() if l.startswith("| ") and "---" not in l][1:]
+        for row in table:
+            self.assertEqual(len(re.findall(r"(?<!\\)\|", row)), 5, row)
+
+    def test_bare_urls_in_claims_are_not_autolinked(self):
+        out = vc.cell("see https://evil.example and www.evil.example or HTTP://x.example")
+        self.assertNotIn("https://", out)
+        self.assertNotIn("www.", out)
+        self.assertNotIn("HTTP://", out)
+
+    def test_link_targets_are_percent_encoded(self):
+        self.assertEqual(vc.link("x", "https://z.cash/learn/a(b)/<c>"), "[x](https://z.cash/learn/a%28b%29/%3Cc%3E)")
+
+    def test_footer_states_what_was_consulted(self):
+        results, sources = run(["`zebrad` syncs."], pages=LEARN)
+        report = vc.render(results, [], sources)
+        self.assertIn("z.cash/learn (3 articles)", report)
+        self.assertIn("base branch's `docs/versioned-facts.md`", report)
 
 
 class CheckFactsTests(unittest.TestCase):
@@ -186,8 +488,11 @@ class CheckFactsTests(unittest.TestCase):
                 self.assertEqual(got, want)
                 self.assertTrue(cf.agrees(facts[fid], got))
 
+    def test_repo_oracles_are_all_allowlisted(self):
+        for f in cf.load_facts():
+            self.assertEqual(cf.definition_errors(f), [], f["id"])
+
     def test_nu7_height_pattern_catches_comma_grouped_heights(self):
-        import re
         fact = {f["id"]: f for f in cf.load_facts()}["nu7-testnet-height"]
         hit = re.search(fact["pattern"], "NU7 activated on Testnet at height 4,465,027.").group(0)
         self.assertNotIn(fact["value"], hit)
@@ -207,6 +512,12 @@ class CliTests(unittest.TestCase):
             os.unlink(fh.name)
         self.assertEqual(out.returncode, 0, out.stderr)
         self.assertIn("No added lines", out.stdout)
+
+    def test_facts_cannot_be_supplied_on_the_command_line(self):
+        out = subprocess.run([sys.executable, os.path.join(ROOT, "docs", "verify-claims.py"), "--diff", os.devnull, "--facts", "x"],
+                             capture_output=True, text=True)
+        self.assertEqual(out.returncode, 2)
+        self.assertIn("unrecognized arguments: --facts", out.stderr)
 
 
 if __name__ == "__main__":
