@@ -149,6 +149,33 @@ class ParseTests(unittest.TestCase):
         vc.source_links("<!--" * 50_000)
         self.assertLess(time.monotonic() - started, 1.0)
 
+    def test_quoted_diff_paths_are_decoded(self):
+        # git C-quotes paths containing quotes, backslashes, controls or non-ASCII.
+        diff = ('diff --git "a/skills/na\\303\\257ve/SKILL.md" "b/skills/na\\303\\257ve/SKILL.md"\n'
+                '--- "a/skills/na\\303\\257ve/SKILL.md"\n'
+                '+++ "b/skills/na\\303\\257ve/SKILL.md"\n'
+                "@@ -0,0 +1,1 @@\n"
+                "+claim\n")
+        self.assertEqual(vc.parse_diff(diff), [("skills/naïve/SKILL.md", 1, "claim")])
+        quoted = '+++ "b/skills/we\\"ird/SKILL.md"\n@@ -0,0 +1,1 @@\n+claim\n'
+        self.assertEqual(vc.parse_diff(quoted), [("skills/we\"ird/SKILL.md", 1, "claim")])
+
+    def test_undecodable_quoted_diff_paths_are_skipped(self):
+        for header in ('+++ "b/skills/unclosed/SKILL.md\n', '+++ "b/skills/bad\\x99utf8/SKILL.md"\n'):
+            diff = f"{header}@@ -0,0 +1,1 @@\n+claim\n"
+            self.assertEqual(vc.parse_diff(diff), [])
+
+    def test_search_terms_cannot_break_the_quoted_query(self):
+        self.assertEqual(vc.search_term('foo"bar'), "foobar")
+        self.assertEqual(vc.search_term('"'), "")
+        calls = []
+        run(["Use `foo\"bar` to send."], pages={vc.RTD_SEARCH + "*": rtd_response("nothing")}, token="t",
+            calls=calls, sleep=lambda s: None)
+        search_urls = [u for u, _ in calls if u.startswith(vc.RTD_SEARCH)]
+        self.assertTrue(search_urls)
+        self.assertIn(urllib.parse.quote('project:zcash "foobar"'), search_urls[0])
+        self.assertNotIn('"foo"', search_urls[0])
+
 
 class TrustBoundaryTests(unittest.TestCase):
     """Review of #4: verdicts never depend on anything the PR controls."""

@@ -106,13 +106,26 @@ def in_scope(path):
     return path.endswith(".md") and (path == "SKILL.md" or path.startswith("skills/") or path == FACTS_PATH)
 
 
+def unquote_path(target):
+    """Decode git's C-quoted diff path ("b/we\\303\\251rd.md") to plain text, or
+    None when it can't be decoded. Unquoted targets pass through unchanged."""
+    if not target.startswith('"'):
+        return target
+    try:
+        quoted = target[1 : target.rindex('"')]
+        raw = bytes(quoted, "utf-8").decode("unicode_escape")
+        return raw.encode("latin-1").decode("utf-8")
+    except (ValueError, UnicodeDecodeError):
+        return None
+
+
 def parse_diff(diff):
     """Return [(path, line_no, text)] for lines the diff adds to in-scope files."""
     claims, path, line_no = [], None, 0
     for raw in diff.splitlines():
         if raw.startswith("+++ "):
-            target = raw[4:].strip()
-            path = target[2:] if target.startswith("b/") else None
+            target = unquote_path(raw[4:].strip())
+            path = target[2:] if target and target.startswith("b/") else None
             continue
         if raw.startswith("@@"):
             m = re.match(r"@@ -\d+(?:,\d+)? \+(\d+)", raw)
@@ -281,7 +294,11 @@ def dicts(data, key):
 
 
 def search_term(value):
-    return value.replace(",", "") if re.fullmatch(r"[\d,]+", value) else value
+    """A value as a quoted-search term. A `"` would close the query's quoting, so
+    it is dropped — the fragment check on each result does the real matching, the
+    query only needs to narrow. Returns "" when nothing searchable remains."""
+    term = value.replace(",", "") if re.fullmatch(r"[\d,]+", value) else value
+    return term.replace('"', "").strip()
 
 
 def fetch_archive(url):
@@ -436,8 +453,12 @@ class Sources:
             return self._rtd[value]
         if self.rtd_queries >= RTD_MAX_QUERIES:
             return None, f"per-run cap of {RTD_MAX_QUERIES} searches reached"
+        term = search_term(value)
+        if not term:
+            self._rtd[value] = (None, "no searchable term")
+            return self._rtd[value]
         self.rtd_queries += 1
-        query = urllib.parse.quote(f'project:zcash "{search_term(value)}"')
+        query = urllib.parse.quote(f'project:zcash "{term}"')
         try:
             data = json.loads(self.fetch(RTD_SEARCH + query))
         except (UpstreamError, ValueError) as e:
@@ -466,8 +487,12 @@ class Sources:
             return None, f"per-run cap of {CODE_SEARCH_MAX} searches reached"
         if self.code_queries:
             self.sleep(CODE_SEARCH_INTERVAL)
+        term = search_term(value)
+        if not term:
+            self._code[value] = (None, "no searchable term")
+            return self._code[value]
         self.code_queries += 1
-        query = urllib.parse.quote(f'org:zodl-inc "{search_term(value)}"')
+        query = urllib.parse.quote(f'org:zodl-inc "{term}"')
         headers = {
             "Authorization": f"Bearer {self.token}",
             "Accept": "application/vnd.github.text-match+json",
