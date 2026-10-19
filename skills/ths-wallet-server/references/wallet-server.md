@@ -8,16 +8,18 @@
 | Zakura JSON-RPC and node-selected chain checkpoint | `crates/ths-server/src/rpc.rs` |
 | lightwalletd download, rewind, transparent discovery, scan ranges | `crates/ths-server/src/reconcile.rs` |
 | Pinned wallet API and balances; SDK payment creation, journal, submission | `crates/ths-server/src/wallet.rs`, `wallet/payments.rs`, `wallet/journal.rs`, `wallet/submission.rs` |
+| Canonical wallet history behind `GET /api/v1/activity` | `crates/ths-server/src/wallet/history.rs` |
 | Store and account constants; schema, accounts, activity claims, address-faucet claims | `crates/ths-server/src/db.rs`, `db/schema.rs`, `db/accounts.rs`, `db/activity.rs`, `db/address_faucet.rs` |
 | Atomic treasury reward import, cursor extension, rewind | `crates/ths-server/src/wallet/recovery.rs` |
 | State and wallet snapshot publication / sync loop | `crates/ths-server/src/state.rs`, `sync.rs` |
-| HTTP routing; status, payment validation/claims, mining, explorer, events, errors | `crates/ths-server/src/api.rs`, `api/status.rs`, `api/payments.rs`, `api/mining.rs`, `api/explorer.rs`, `api/events.rs`, `api/error.rs` |
+| HTTP routing; status, payment validation/claims, mining, reorg/rollback, explorer, events, errors | `crates/ths-server/src/api.rs`, `api/status.rs`, `api/payments.rs`, `api/mining.rs`, `api/chain.rs`, `api/explorer.rs`, `api/events.rs`, `api/error.rs` |
 | Background payment progression and execution | `crates/ths-server/src/payments/progression.rs`, `payments/execution.rs`, `payments/attempt.rs` |
 | Treasury replenishment, saved-transaction recovery, confirmation | `crates/ths-server/src/payments/treasury.rs`, `payments/submission.rs`, `payments/confirmation.rs` |
 | Mining jobs | `crates/ths-server/src/mining.rs` |
+| Regtest chain rewrites (reorg, rollback) | `crates/ths-server/src/chain.rs` |
 | Docker-free tests | `crates/ths-server/tests/unit/` mirrors the source modules; follow their `#[path]` declarations |
 
-Map checked against THS main at `6b00d0f0e40ecd42f61ca046485a03b69c5f3338` on 2026-10-16. Paths without a crate prefix in a row are relative to `crates/ths-server/src/`. Re-resolve symbols in the target checkout and distinguish production callers from `#[cfg(test)]` adapters.
+Map checked against THS main at `c0edfb0585aa868504fa5e5ce330e58df59de8e1` (v0.4.0) on 2026-10-20. Paths without a crate prefix in a row are relative to `crates/ths-server/src/`. Re-resolve symbols in the target checkout and distinguish production callers from `#[cfg(test)]` adapters.
 
 Inspect `Cargo.toml` and `crates/ths-server/Cargo.toml` before using upstream wallet documentation. This repository imports Zakura wallet crates (`zakura-keys`, `zakura-primitives`, `zakura-client-backend`, `zakura-client-sqlite`, `zakura-proofs`, `zakura-orchard`, `zakura-sapling-crypto`, `zakura-pczt`, `zakura-transparent`, `zakura-zip321`) under `zcash_*` aliases at exact-pinned versions. API semantics and compatibility claims must follow the resolved source.
 

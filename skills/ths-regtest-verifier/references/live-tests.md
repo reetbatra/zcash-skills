@@ -15,17 +15,18 @@
 | Large transparent reward history and later faucet responsiveness | Ignored `large_reward_history_keeps_treasury_faucet_responsive` |
 | Source-built dashboard or launcher behavior in containers | Rebuild app image, start a named disposable instance, inspect the actual running image |
 
-Read the current `README.md` activity-recovery section and `crates/ths-server/tests/activity_recovery.rs` before a live run. The fixture is in `crates/ths-server/tests/support/regtest.rs`; it owns UUID-prefixed resources, a source-built server process, private data directories, and cleanup. The live integration target uses the Cargo-built `ths-server` binary, not the app image. The app image must be rebuilt for a separate `ths` container run after server or web edits.
+Read the "Activity-recovery integration test" section of `book/development.md` and `crates/ths-server/tests/activity_recovery.rs` before a live run. The fixture is in `crates/ths-server/tests/support/regtest.rs`; it owns UUID-prefixed resources, a source-built server process, private data directories, and cleanup. The live integration target uses the Cargo-built `ths-server` binary, not the app image. The app image must be rebuilt for a separate `ths` container run after server or web edits.
 
 ## Documented recovery run
 
-From the repository root, the current sequence is (check `README.md` for the pinned image tag at your revision):
+From the repository root, the current sequence is (check `book/development.md` for the pinned image tag at your revision):
 
 ```console
 cargo test --locked --profile dev-runtime -p ths-server --test activity_recovery --no-run
 cargo test --locked --profile dev-runtime -p ths-server --test activity_recovery
 docker pull zakuracore/zakura:1.6.0
 docker build -f docker/lightwalletd.Dockerfile -t ths-recovery-lightwalletd:local .
+cargo test --locked --profile dev-runtime -p ths-server --test activity_recovery -- --ignored --list
 cargo test --locked --profile dev-runtime -p ths-server --test activity_recovery -- --ignored --exact broadcast_recovers_after_auto_mine_failure
 cargo test --locked --profile dev-runtime -p ths-server --test activity_recovery -- --ignored --exact concurrent_identical_sends_have_one_chain_effect
 cargo test --locked --profile dev-runtime -p ths-server --test activity_recovery -- --ignored --exact address_faucet_retry_after_server_restart_pays_each_destination_once
@@ -34,7 +35,7 @@ cargo test --locked --profile dev-runtime -p ths-server --test activity_recovery
 cargo test --locked --profile dev-runtime -p ths-server --test activity_recovery -- --ignored --exact reorg_and_rollback_preserve_canonical_wallet_and_payment_state
 ```
 
-The first command compiles the integration target; the second runs Docker-free helper tests while the live cases remain ignored. The explicit `--ignored --exact` selections run the real cases. `broadcast_recovers_after_auto_mine_failure` broadcasts an Ironwood payment, rejects exactly one automatic `generate([1])`, mines directly through the node, and waits for background wallet sync to confirm the **existing** activity row. Retrying Send or calling the server mine endpoint would exercise a different repair path. Assert the exact transaction's inclusion, unchanged activity identity, confirmed block hash, and resulting wallet state.
+The first command compiles the integration target; the second runs Docker-free helper tests while the live cases remain ignored. `--ignored --list` shows which live cases exist at your revision. The explicit `--ignored --exact` selections run the real cases. `broadcast_recovers_after_auto_mine_failure` broadcasts an Ironwood payment, rejects exactly one automatic `generate([1])`, mines directly through the node, and waits for background wallet sync to confirm the **existing** activity row. Retrying Send or calling the server mine endpoint would exercise a different repair path. Assert the exact transaction's inclusion, unchanged activity identity, confirmed block hash, and resulting wallet state.
 
 The 10,000-block case is a separate, expensive performance and correctness workload. It mines the history directly, waits for wallet sync, mines one incremental block, then exercises the faucet. Use it for reward-history and treasury-cursor claims; it is not required to prove auto-mine recovery. Its absence from the ordinary CI live job must be reported when making a large-history claim.
 
@@ -48,7 +49,7 @@ The recovery case rejects one automatic mine, confirms the original txid is stil
 
 Before running, identify the source revision, Cargo profile, selected test, expected node and lightwalletd images, Docker daemon, and available time. Do not use a previously installed server binary as evidence for edited source. Distinguish setup failure, compilation failure, helper-test pass, live-case pass, timeout, and cleanup failure. A green command with zero selected live cases proves no Docker behavior.
 
-The fixture must remove only resources it registered, even after cancellation or partial startup. Do not prune shared Docker state or erase another instance. Inspect the fixture's allowlisted failure report rather than leaking keys, raw wallet data, or process logs. Report the exact command, observed chain and wallet checkpoints, transaction/activity oracle, elapsed time for a performance claim, and any untested boundary. For a negative control, follow the README's isolated-worktree procedure and restore temporary instrumentation immediately.
+The fixture must remove only resources it registered, even after cancellation or partial startup. Do not prune shared Docker state or erase another instance. Inspect the fixture's allowlisted failure report rather than leaking keys, raw wallet data, or process logs. Report the exact command, observed chain and wallet checkpoints, transaction/activity oracle, elapsed time for a performance claim, and any untested boundary. THS no longer documents a negative-control procedure; the README section was removed in thus-spoke-zakura@efd338c. For one, disable the background path the case depends on in an isolated worktree (for broadcast recovery at the checked revision, the `payment_confirmation_loop` spawn in `bootstrap.rs::background_tasks`), require the same live command to fail at that step, and restore the code immediately, even after a failed run.
 
 ## Worked task: verify 10,000 reward blocks
 

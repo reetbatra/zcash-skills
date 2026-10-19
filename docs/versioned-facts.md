@@ -31,6 +31,7 @@ file whose match text differs from `value`.
 | Workspace version | `0.3.0` | 2026-10-08 | `Cargo.toml` |
 | Packages / binary | `ths-cli`, `ths-server`; package `thus-spoke-zakura`, binary `ths` | 2026-10-02 | `Cargo.toml` |
 | Rust toolchain | `1.98.0` (`rust-toolchain.toml`); Node `24` for `web/` | 2026-10-02 | `rust-toolchain.toml`, `ci.yml` |
+| CLI subcommands | `block`, `build`, `doctor`, `endpoints`, `faucet`, `list`, `logs`, `mine`, `open`, `pull`, `reorg`, `reset`, `rollback`, `run`, `start`, `status`, `stop`, `tx`, `uninstall`, `update`, `wait`, `wallet` | 2026-10-20 | `crates/ths-cli/src/args.rs` (`enum Command`) |
 | Pinned node image | `zakuracore/zakura:1.6.0` (`ZAKURA_IMAGE` in `runtime/images.rs`) | 2026-10-16 | `crates/ths-cli/src/runtime/images.rs` |
 | zcashd-compat sidecar image | `zakuracore/zcashd` — current docs tag `v1.2.0` (zcashd-versioned, independent of Zakura tags) | 2026-10-08 | `zakura` repo `docs/zcashd-compat.md` |
 | App / lightwalletd images | `ghcr.io/zcashlabs/thus-spoke-zakura-app`, `-lightwalletd` | 2026-10-16 | `crates/ths-cli/src/runtime/images.rs`, `release.yml` |
@@ -103,6 +104,16 @@ verified: 2026-10-16
 source: web/src/hooks/useServerEvents.ts — TOPICS.chain expression
 upstream: https://raw.githubusercontent.com/zcashlabs/thus-spoke-zakura/main/web/src/hooks/useServerEvents.ts
 extract: ^  chain:\s*(\[[^\n]+\]),$
+```
+
+```facts
+id: ths-cli-commands
+value: Block, Build, Doctor, Endpoints, Faucet, List, Logs, Mine, Open, Pull, Reorg, Reset, Rollback, Run, Start, Status, Stop, Tx, Uninstall, Update, Wait, Wallet
+verified: 2026-10-20
+source: crates/ths-cli/src/args.rs, `enum Command` variants (the lookahead stops at `enum WalletCommand`)
+upstream: https://raw.githubusercontent.com/zcashlabs/thus-spoke-zakura/main/crates/ths-cli/src/args.rs
+extract: ^    ([A-Z][A-Za-z]*)(?= \{|,|\()(?=(?:.*\n)*?^pub\(crate\) enum WalletCommand\b)
+extract_all: true
 ```
 
 ```facts

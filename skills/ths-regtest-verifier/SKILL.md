@@ -5,7 +5,7 @@ description: Use when validating Thus Spoke Zakura changes with real Docker cont
 
 # THS Regtest verifier
 
-Read the current `AGENTS.md`, the affected test, and the relevant section of `README.md`. Match the test to the claim: Rust and web checks cover their own code paths; the live stack is needed when the claim depends on actual container images, node behavior, proving, retained wallet data, or background recovery.
+Read the current `AGENTS.md`, the affected test, and the relevant section of `book/development.md`. Match the test to the claim: Rust and web checks cover their own code paths; the live stack is needed when the claim depends on actual container images, node behavior, proving, retained wallet data, or background recovery.
 
 Before a live run, identify the exact source revision, selected Cargo-built server binary, required node/lightwalletd images, selected test, and Docker resources it creates. For a separate `ths` container run, rebuild the app image after server or web changes. Never use a result from an older artifact as evidence for current source. Select only the needed scenario; the 10,000-block reward-history case is a substantial performance workload and is not part of the ordinary CI live job.
 

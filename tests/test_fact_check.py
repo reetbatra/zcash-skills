@@ -677,6 +677,19 @@ class CheckFactsTests(unittest.TestCase):
         for f in cf.load_facts():
             self.assertEqual(cf.definition_errors(f), [], f["id"])
 
+    def test_cli_commands_oracle_reads_only_the_command_enum(self):
+        fact = {f["id"]: f for f in cf.load_facts()}["ths-cli-commands"]
+        args_rs = (
+            "pub(crate) enum Command {\n    /// Start.\n    Start {\n        #[arg(long)]\n        no_open: bool,\n    },\n"
+            "    Pull,\n    Reorg {\n        depth: u32,\n    },\n}\n\n#[derive(Subcommand)]\n"
+            "pub(crate) enum WalletCommand {\n    Balances,\n    Send(SendArgs),\n}\n\n"
+            "pub(crate) enum Pool {\n    Ironwood,\n}\n"
+        )
+        self.assertEqual(cf.upstream_value(fact, fetch=lambda url: args_rs), "Pull, Reorg, Start")
+        renamed = args_rs.replace("enum WalletCommand", "enum WalletCmd")
+        with self.assertRaises(cf.ExtractError):
+            cf.upstream_value(fact, fetch=lambda url: renamed)
+
     def test_nu7_height_pattern_catches_comma_grouped_heights(self):
         fact = {f["id"]: f for f in cf.load_facts()}["nu7-testnet-height"]
         hit = re.search(fact["pattern"], "NU7 activated on Testnet at height 4,465,027.").group(0)
